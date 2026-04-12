@@ -26,8 +26,16 @@ const times = [
 const emptyFormData = {
   fach: "",
   klasse: classes[0],
-  lehrer: "",
+  lehrpersonen: [""],
   dauer: 1,
+};
+
+const getViewFromHash = () => {
+  const hash = window.location.hash.replace("#", "");
+
+  if (hash === "/klassen") return "klassen";
+  if (hash === "/lehrpersonen") return "lehrpersonen";
+  return "main";
 };
 
 function App() {
@@ -41,6 +49,7 @@ function App() {
   const [isPaletteDragOver, setIsPaletteDragOver] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [statsView, setStatsView] = useState("overview");
+  const [currentView, setCurrentView] = useState(getViewFromHash());
 
   const [showFormModal, setShowFormModal] = useState(false);
   const [formMode, setFormMode] = useState("create");
@@ -50,28 +59,96 @@ function App() {
 
   const fileInputRef = useRef(null);
 
-  const normalizeBlock = useCallback((b) => {
-    const klasse = classes.includes(b.klasse) ? b.klasse : classes[0];
+  const normalizeTeacherList = useCallback((value) => {
+    if (Array.isArray(value)) {
+      const cleaned = value
+        .map((entry) => String(entry || "").trim())
+        .filter(Boolean);
+      return cleaned.length > 0 ? cleaned : [""];
+    }
 
-    return {
-      ...b,
-      id: String(b.id ?? crypto.randomUUID()),
-      dauer: b.dauer === 2 ? 2 : 1,
-      parallelSlot:
-        b.parallelSlot === 0 || b.parallelSlot === 1 ? b.parallelSlot : null,
-      tag: b.tag ?? null,
-      lektion: Number.isInteger(b.lektion) ? b.lektion : null,
-      fach: b.fach ?? "",
-      klasse,
-      lehrer: b.lehrer ?? "",
-    };
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return trimmed ? [trimmed] : [""];
+    }
+
+    return [""];
   }, []);
+
+  const getTeacherListFromBlock = useCallback(
+    (block) => {
+      if (Array.isArray(block.lehrpersonen)) {
+        return block.lehrpersonen
+          .map((entry) => String(entry || "").trim())
+          .filter(Boolean);
+      }
+
+      if (typeof block.lehrer === "string" && block.lehrer.trim()) {
+        return [block.lehrer.trim()];
+      }
+
+      return [];
+    },
+    []
+  );
+
+  const getTeacherDisplay = useCallback(
+    (block) => {
+      const list = getTeacherListFromBlock(block);
+      return list.length > 0 ? list.join(", ") : "";
+    },
+    [getTeacherListFromBlock]
+  );
+
+  const normalizeBlock = useCallback(
+    (b) => {
+      const klasse = classes.includes(b.klasse) ? b.klasse : classes[0];
+      const lehrpersonen = normalizeTeacherList(
+        Array.isArray(b.lehrpersonen) ? b.lehrpersonen : b.lehrer
+      );
+
+      return {
+        ...b,
+        id:
+          b.id != null
+            ? String(b.id)
+            : typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        dauer: b.dauer === 2 ? 2 : 1,
+        parallelSlot:
+          b.parallelSlot === 0 || b.parallelSlot === 1 ? b.parallelSlot : null,
+        tag: b.tag ?? null,
+        lektion: Number.isInteger(b.lektion) ? b.lektion : null,
+        fach: b.fach ?? "",
+        klasse,
+        lehrpersonen,
+      };
+    },
+    [normalizeTeacherList]
+  );
 
   const createId = () => {
     if (typeof crypto !== "undefined" && crypto.randomUUID) {
       return crypto.randomUUID();
     }
     return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  };
+
+  const navigateTo = (view) => {
+    if (view === "main") {
+      window.location.hash = "/";
+      return;
+    }
+
+    if (view === "klassen") {
+      window.location.hash = "/klassen";
+      return;
+    }
+
+    if (view === "lehrpersonen") {
+      window.location.hash = "/lehrpersonen";
+    }
   };
 
   const exportData = useCallback(() => {
@@ -146,6 +223,16 @@ function App() {
       console.error("Lokale Daten konnten nicht gespeichert werden.", error);
     }
   }, [blockData, paletteBlocks]);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      setCurrentView(getViewFromHash());
+      setSelectedBlock(null);
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   const getBlocksInCell = useCallback(
     (day, klasse, lektion, excludeId = null) => {
@@ -240,9 +327,21 @@ function App() {
     return [...blockData, ...paletteBlocks];
   }, [blockData, paletteBlocks]);
 
+  const teachers = useMemo(() => {
+    return [
+      ...new Set(
+        blockData.flatMap((b) => getTeacherListFromBlock(b)).filter(Boolean)
+      ),
+    ].sort((a, b) => a.localeCompare(b, "de"));
+  }, [blockData, getTeacherListFromBlock]);
+
   const distinctColorMap = useMemo(() => {
     const sourceValues = allBlocks
-      .map((b) => (colorMode === "fach" ? b.fach : b.lehrer))
+      .map((b) => {
+        if (colorMode === "fach") return b.fach;
+        const teacherList = getTeacherListFromBlock(b);
+        return teacherList.length > 0 ? teacherList.join(", ") : "Unbekannt";
+      })
       .map((value) => String(value || "Unbekannt").trim())
       .filter(Boolean);
 
@@ -266,23 +365,30 @@ function App() {
     }
 
     return map;
-  }, [allBlocks, colorMode]);
+  }, [allBlocks, colorMode, getTeacherListFromBlock]);
 
   const getColor = useCallback(
     (block) => {
       const key =
         colorMode === "fach"
           ? String(block.fach || "Unbekannt").trim()
-          : String(block.lehrer || "Unbekannt").trim();
+          : (() => {
+              const teacherList = getTeacherListFromBlock(block);
+              return teacherList.length > 0
+                ? teacherList.join(", ")
+                : "Unbekannt";
+            })();
 
       return distinctColorMap[key] || distinctColorMap.Unbekannt;
     },
-    [colorMode, distinctColorMap]
+    [colorMode, distinctColorMap, getTeacherListFromBlock]
   );
 
   const hasTeacherOverlap = useCallback(
     (block) => {
-      if (!block.lehrer || block.tag == null || block.lektion == null) {
+      const teacherList = getTeacherListFromBlock(block);
+
+      if (teacherList.length === 0 || block.tag == null || block.lektion == null) {
         return false;
       }
 
@@ -291,10 +397,14 @@ function App() {
 
       return blockData.some((other) => {
         if (other.id === block.id) return false;
-        if (!other.lehrer) return false;
-        if (other.lehrer !== block.lehrer) return false;
         if (other.tag !== block.tag) return false;
         if (other.lektion == null) return false;
+
+        const otherTeachers = getTeacherListFromBlock(other);
+        if (otherTeachers.length === 0) return false;
+
+        const sharesTeacher = teacherList.some((t) => otherTeachers.includes(t));
+        if (!sharesTeacher) return false;
 
         const otherStart = other.lektion;
         const otherEnd = otherStart + (other.dauer || 1) - 1;
@@ -302,67 +412,70 @@ function App() {
         return !(blockEnd < otherStart || blockStart > otherEnd);
       });
     },
-    [blockData]
+    [blockData, getTeacherListFromBlock]
   );
 
   const teacherConflicts = useMemo(() => {
     const conflicts = [];
+    const seen = new Set();
 
     blockData.forEach((block) => {
-      if (!block.lehrer || block.tag == null || block.lektion == null) return;
+      const teacherList = getTeacherListFromBlock(block);
+
+      if (teacherList.length === 0 || block.tag == null || block.lektion == null) {
+        return;
+      }
 
       const blockStart = block.lektion;
       const blockEnd = blockStart + (block.dauer || 1) - 1;
 
-      const overlappingBlocks = blockData.filter((other) => {
-        if (other.id === block.id) return false;
-        if (!other.lehrer) return false;
-        if (other.lehrer !== block.lehrer) return false;
-        if (other.tag !== block.tag) return false;
-        if (other.lektion == null) return false;
+      teacherList.forEach((teacher) => {
+        const overlappingBlocks = blockData.filter((other) => {
+          if (other.id === block.id) return false;
+          if (other.tag !== block.tag) return false;
+          if (other.lektion == null) return false;
 
-        const otherStart = other.lektion;
-        const otherEnd = otherStart + (other.dauer || 1) - 1;
+          const otherTeachers = getTeacherListFromBlock(other);
+          if (!otherTeachers.includes(teacher)) return false;
 
-        return !(blockEnd < otherStart || blockStart > otherEnd);
-      });
+          const otherStart = other.lektion;
+          const otherEnd = otherStart + (other.dauer || 1) - 1;
 
-      if (overlappingBlocks.length > 0) {
-        const partnerIds = overlappingBlocks
-          .map((b) => b.id)
-          .sort()
-          .join("|");
-
-        const uniqueKey = [block.id, partnerIds].sort().join("::");
-
-        conflicts.push({
-          key: uniqueKey,
-          lehrer: block.lehrer,
-          tag: block.tag,
-          zeit: times[block.lektion] || `Lektion ${block.lektion + 1}`,
-          klasse: block.klasse || "Ohne Klasse",
-          fach: block.fach || "Ohne Fach",
+          return !(blockEnd < otherStart || blockStart > otherEnd);
         });
-      }
+
+        if (overlappingBlocks.length > 0) {
+          const visualKey = `${teacher}-${block.tag}-${block.lektion}-${block.id}`;
+
+          if (!seen.has(visualKey)) {
+            seen.add(visualKey);
+            conflicts.push({
+              key: visualKey,
+              lehrer: teacher,
+              tag: block.tag,
+              zeit: times[block.lektion] || `Lektion ${block.lektion + 1}`,
+              klasse: block.klasse || "Ohne Klasse",
+              fach: block.fach || "Ohne Fach",
+            });
+          }
+        }
+      });
     });
 
-    const deduped = [];
-    const seen = new Set();
-
-    for (const entry of conflicts) {
-      const visualKey = `${entry.lehrer}-${entry.tag}-${entry.zeit}-${entry.klasse}-${entry.fach}`;
-      if (!seen.has(visualKey)) {
-        seen.add(visualKey);
-        deduped.push(entry);
-      }
-    }
-
-    return deduped.sort((a, b) => {
+    return conflicts.sort((a, b) => {
       const dayCompare = days.indexOf(a.tag) - days.indexOf(b.tag);
       if (dayCompare !== 0) return dayCompare;
-      return a.zeit.localeCompare(b.zeit, "de");
+
+      const timeCompare =
+        times.indexOf(a.zeit) >= 0 && times.indexOf(b.zeit) >= 0
+          ? times.indexOf(a.zeit) - times.indexOf(b.zeit)
+          : a.zeit.localeCompare(b.zeit, "de");
+
+      if (timeCompare !== 0) return timeCompare;
+
+      return a.lehrer.localeCompare(b.lehrer, "de");
     });
-  }, [blockData]);
+  }, [blockData, getTeacherListFromBlock]);
 
   const openCreateModal = () => {
     setFormMode("create");
@@ -371,20 +484,22 @@ function App() {
     setFormData({
       fach: "",
       klasse: classes[0],
-      lehrer: "",
+      lehrpersonen: [""],
       dauer: 1,
     });
     setShowFormModal(true);
   };
 
   const openEditModal = (block, isPalette) => {
+    const existingTeachers = getTeacherListFromBlock(block);
+
     setFormMode("edit");
     setEditingBlockId(block.id);
     setEditingIsPalette(isPalette);
     setFormData({
       fach: block.fach || "",
       klasse: classes.includes(block.klasse) ? block.klasse : classes[0],
-      lehrer: block.lehrer || "",
+      lehrpersonen: existingTeachers.length > 0 ? existingTeachers : [""],
       dauer: block.dauer === 2 ? 2 : 1,
     });
     setShowFormModal(true);
@@ -404,12 +519,40 @@ function App() {
     }));
   };
 
+  const handleTeacherChange = (index, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      lehrpersonen: prev.lehrpersonen.map((entry, i) =>
+        i === index ? value : entry
+      ),
+    }));
+  };
+
+  const addTeacherField = () => {
+    setFormData((prev) => ({
+      ...prev,
+      lehrpersonen: [...prev.lehrpersonen, ""],
+    }));
+  };
+
+  const removeTeacherField = (index) => {
+    setFormData((prev) => {
+      const next = prev.lehrpersonen.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        lehrpersonen: next.length > 0 ? next : [""],
+      };
+    });
+  };
+
   const handleFormSubmit = (e) => {
     e.preventDefault();
 
     const fach = formData.fach.trim();
     const klasse = formData.klasse;
-    const lehrer = formData.lehrer.trim();
+    const lehrpersonen = formData.lehrpersonen
+      .map((entry) => String(entry || "").trim())
+      .filter(Boolean);
     const dauer = Number(formData.dauer) === 2 ? 2 : 1;
 
     if (!fach) {
@@ -422,8 +565,8 @@ function App() {
       return;
     }
 
-    if (!lehrer) {
-      alert("Bitte eine Lehrperson eingeben.");
+    if (lehrpersonen.length === 0) {
+      alert("Bitte mindestens eine Lehrperson eingeben.");
       return;
     }
 
@@ -434,7 +577,7 @@ function App() {
           id: createId(),
           fach,
           klasse,
-          lehrer,
+          lehrpersonen,
           dauer,
           tag: null,
           lektion: null,
@@ -454,7 +597,11 @@ function App() {
       return;
     }
 
-    if (!editingIsPalette && currentBlock.tag !== null && currentBlock.lektion !== null) {
+    if (
+      !editingIsPalette &&
+      currentBlock.tag !== null &&
+      currentBlock.lektion !== null
+    ) {
       if (klasse !== currentBlock.klasse) {
         alert(
           "Die Klasse eines bereits gesetzten Blocks kann nicht geändert werden. Verschiebe den Block zuerst zurück in die Palette oder lösche ihn und lege ihn neu an."
@@ -485,7 +632,7 @@ function App() {
                 ...x,
                 fach,
                 klasse,
-                lehrer,
+                lehrpersonen,
                 dauer,
                 parallelSlot: slotStillFits.slot,
               }
@@ -500,7 +647,7 @@ function App() {
       setPaletteBlocks((prev) =>
         prev.map((x) =>
           x.id === currentBlock.id
-            ? { ...x, fach, klasse, lehrer, dauer }
+            ? { ...x, fach, klasse, lehrpersonen, dauer }
             : x
         )
       );
@@ -508,7 +655,7 @@ function App() {
       setBlockData((prev) =>
         prev.map((x) =>
           x.id === currentBlock.id
-            ? { ...x, fach, klasse, lehrer, dauer }
+            ? { ...x, fach, klasse, lehrpersonen, dauer }
             : x
         )
       );
@@ -641,18 +788,27 @@ function App() {
     const map = {};
 
     blockData.forEach((block) => {
-      const lehrer = block.lehrer || "Ohne Lehrperson";
+      const teacherList = getTeacherListFromBlock(block);
       const count = block.dauer || 1;
 
-      if (!map[lehrer]) {
-        map[lehrer] = 0;
+      if (teacherList.length === 0) {
+        if (!map["Ohne Lehrperson"]) {
+          map["Ohne Lehrperson"] = 0;
+        }
+        map["Ohne Lehrperson"] += count;
+        return;
       }
 
-      map[lehrer] += count;
+      teacherList.forEach((teacher) => {
+        if (!map[teacher]) {
+          map[teacher] = 0;
+        }
+        map[teacher] += count;
+      });
     });
 
     return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0], "de"));
-  }, [blockData]);
+  }, [blockData, getTeacherListFromBlock]);
 
   const totalLessons = useMemo(() => {
     return blockData.reduce((sum, block) => sum + (block.dauer || 1), 0);
@@ -691,8 +847,10 @@ function App() {
           }}
           title={
             teacherOverlap
-              ? `Achtung: ${b.lehrer} ist am ${b.tag} parallel eingeplant.`
-              : `${b.fach} – ${b.klasse} – ${b.lehrer}`
+              ? `Achtung: ${getTeacherDisplay(
+                  b
+                )} ist am ${b.tag} parallel eingeplant.`
+              : `${b.fach} – ${b.klasse} – ${getTeacherDisplay(b)}`
           }
           draggable
           onClick={() => setSelectedBlock(b.id)}
@@ -701,12 +859,92 @@ function App() {
         >
           <div className="fach">{b.fach}</div>
           <div className="klasse">{b.klasse}</div>
-          <div className="lehrer">{b.lehrer}</div>
+          <div className="lehrer">{getTeacherDisplay(b)}</div>
           {dauer === 2 && <div className="dauer-label">Doppelstunde</div>}
           {teacherOverlap && <div className="conflict-badge">!</div>}
         </div>
       );
     });
+  };
+
+  const renderReadOnlySchedule = (title, blocks, subtitle = null) => {
+    const renderReadOnlyBlocksInCell = (day, rowIndex) => {
+      const blocksStartingHere = blocks
+        .filter((b) => b.tag === day && b.lektion === rowIndex)
+        .sort((a, b) => (a.parallelSlot ?? 0) - (b.parallelSlot ?? 0));
+
+      const isSingleBlock = blocksStartingHere.length === 1;
+
+      return blocksStartingHere.map((b) => {
+        const slot = b.parallelSlot ?? 0;
+        const dauer = b.dauer || 1;
+        const teacherOverlap = hasTeacherOverlap(b);
+
+        return (
+          <div
+            key={b.id}
+            className={`block scheduled-block read-only-block ${
+              teacherOverlap ? "teacher-overlap" : ""
+            }`}
+            style={{
+              backgroundColor: getColor(b),
+              left: isSingleBlock ? "0%" : slot === 0 ? "0%" : "50%",
+              width: isSingleBlock ? "100%" : "50%",
+              height: `calc(${dauer} * var(--cell-height) + ${
+                dauer - 1
+              } * var(--grid-gap))`,
+              zIndex: teacherOverlap ? 20 : 10,
+              cursor: "default",
+            }}
+            title={`${b.fach} – ${b.klasse} – ${getTeacherDisplay(b)}`}
+          >
+            <div className="fach">{b.fach}</div>
+            <div className="klasse">{b.klasse}</div>
+            <div className="lehrer">{getTeacherDisplay(b)}</div>
+            {dauer === 2 && <div className="dauer-label">Doppelstunde</div>}
+            {teacherOverlap && <div className="conflict-badge">!</div>}
+          </div>
+        );
+      });
+    };
+
+    return (
+      <div className="single-schedule-print-block" key={title}>
+        <h2>{title}</h2>
+        {subtitle && <div className="summary-subtitle">{subtitle}</div>}
+
+        <div className="single-plan-wrapper">
+          <div className="single-grid">
+            <div className="time header-cell">Zeit</div>
+
+            {days.map((d) => (
+              <div key={d} className="day-header">
+                {d}
+              </div>
+            ))}
+
+            {times.map((t, rowIndex) => (
+              <React.Fragment key={`${title}-${rowIndex}`}>
+                <div className="time">{t}</div>
+
+                {days.map((d) => (
+                  <div
+                    key={`${title}-${d}-${rowIndex}`}
+                    className="cell read-only-cell"
+                    style={{
+                      backgroundColor:
+                        rowIndex === 5 || rowIndex === 6 ? "#eee" : "",
+                    }}
+                  >
+                    {renderReadOnlyBlocksInCell(d, rowIndex)}
+                  </div>
+                ))}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const handlePrint = () => {
@@ -731,6 +969,12 @@ function App() {
     const handleKeyDown = (e) => {
       const isMac = navigator.platform.includes("Mac");
       const ctrl = isMac ? e.metaKey : e.ctrlKey;
+      const tagName = document.activeElement?.tagName?.toLowerCase();
+      const isTyping =
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select" ||
+        document.activeElement?.isContentEditable;
 
       if (ctrl && e.key === "s") {
         e.preventDefault();
@@ -747,13 +991,18 @@ function App() {
         window.print();
       }
 
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedBlock) {
+      if (
+        !isTyping &&
+        (e.key === "Delete" || e.key === "Backspace") &&
+        selectedBlock &&
+        currentView === "main"
+      ) {
         setBlockData((prev) => prev.filter((b) => b.id !== selectedBlock));
         setPaletteBlocks((prev) => prev.filter((b) => b.id !== selectedBlock));
         setSelectedBlock(null);
       }
 
-      if (ctrl && e.key === "c" && selectedBlock) {
+      if (ctrl && e.key === "c" && selectedBlock && currentView === "main") {
         const b =
           blockData.find((x) => x.id === selectedBlock) ||
           paletteBlocks.find((x) => x.id === selectedBlock);
@@ -761,7 +1010,7 @@ function App() {
         if (b) setClipboard(b);
       }
 
-      if (ctrl && e.key === "v" && clipboard) {
+      if (ctrl && e.key === "v" && clipboard && currentView === "main") {
         setPaletteBlocks((prev) => [
           ...prev,
           {
@@ -789,7 +1038,7 @@ function App() {
         setZoom(1);
       }
 
-      if (ctrl && e.key.toLowerCase() === "i") {
+      if (ctrl && e.key.toLowerCase() === "i" && currentView === "main") {
         e.preventDefault();
         setShowStats((prev) => !prev);
       }
@@ -808,22 +1057,96 @@ function App() {
     paletteBlocks,
     exportData,
     showFormModal,
+    currentView,
   ]);
 
   const cellWidth = compactView ? 78 * zoom : 100 * zoom;
   const cellHeight = compactView ? 46 * zoom : 60 * zoom;
   const fontScale = compactView ? 0.9 : 1;
 
+  const sharedStyleVars = {
+    "--cell-width": `${cellWidth}px`,
+    "--cell-height": `${cellHeight}px`,
+    "--grid-gap": compactView ? "3px" : "4px",
+    "--font-scale": fontScale,
+    "--time-col-width": "120px",
+  };
+
+  const renderClassSchedulesPage = () => {
+    return (
+      <div className="summary-page">
+        <div className="toolbar no-print">
+          <button onClick={() => navigateTo("main")}>← Zur Hauptseite</button>
+          <button onClick={() => navigateTo("lehrpersonen")}>
+            Zur LP-Ansicht
+          </button>
+          <button onClick={handlePrint}>Drucken</button>
+        </div>
+
+        <h1>Stundenpläne nach Klassen</h1>
+
+        {classes.map((klasse) => {
+          const classBlocks = blockData.filter((b) => b.klasse === klasse);
+          return renderReadOnlySchedule(
+            klasse,
+            classBlocks,
+            "Nur Ansicht – Änderungen bitte auf der Hauptseite vornehmen."
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderTeacherSchedulesPage = () => {
+    return (
+      <div className="summary-page">
+        <div className="toolbar no-print">
+          <button onClick={() => navigateTo("main")}>← Zur Hauptseite</button>
+          <button onClick={() => navigateTo("klassen")}>
+            Zur Klassen-Ansicht
+          </button>
+          <button onClick={handlePrint}>Drucken</button>
+        </div>
+
+        <h1>Stundenpläne nach Lehrpersonen</h1>
+
+        {teachers.length === 0 ? (
+          <p>Es sind noch keine Lehrpersonen im Stundenplan eingetragen.</p>
+        ) : (
+          teachers.map((lehrer) => {
+            const teacherBlocks = blockData.filter((b) =>
+              getTeacherListFromBlock(b).includes(lehrer)
+            );
+
+            return renderReadOnlySchedule(
+              lehrer,
+              teacherBlocks,
+              "Nur Ansicht – Änderungen bitte auf der Hauptseite vornehmen."
+            );
+          })
+        )}
+      </div>
+    );
+  };
+
+  if (currentView === "klassen") {
+    return (
+      <div className="App summary-view" style={sharedStyleVars}>
+        {renderClassSchedulesPage()}
+      </div>
+    );
+  }
+
+  if (currentView === "lehrpersonen") {
+    return (
+      <div className="App summary-view" style={sharedStyleVars}>
+        {renderTeacherSchedulesPage()}
+      </div>
+    );
+  }
+
   return (
-    <div
-      className="App"
-      style={{
-        "--cell-width": `${cellWidth}px`,
-        "--cell-height": `${cellHeight}px`,
-        "--grid-gap": compactView ? "3px" : "4px",
-        "--font-scale": fontScale,
-      }}
-    >
+    <div className="App" style={sharedStyleVars}>
       <h1>Stundenplan</h1>
 
       <div className="toolbar no-print">
@@ -839,6 +1162,8 @@ function App() {
         <button onClick={() => setShowStats((prev) => !prev)}>
           {showStats ? "Statistik ausblenden" : "Statistik anzeigen"}
         </button>
+        <button onClick={() => navigateTo("klassen")}>Klassenpläne</button>
+        <button onClick={() => navigateTo("lehrpersonen")}>LP-Pläne</button>
         <button onClick={exportData}>Speichern / Exportieren</button>
         <button onClick={() => fileInputRef.current?.click()}>
           Importieren
@@ -912,14 +1237,18 @@ function App() {
                 </div>
                 <div className="stats-card warning-card">
                   <div className="stats-number">{teacherConflicts.length}</div>
-                  <div className="stats-label">LP-Hinweise / Überschneidungen</div>
+                  <div className="stats-label">
+                    LP-Hinweise / Überschneidungen
+                  </div>
                 </div>
               </div>
 
               <div className="conflict-list">
                 <h3>Lehrpersonen-Hinweise</h3>
                 {teacherConflicts.length === 0 ? (
-                  <div className="muted-cell">Keine markierten Überschneidungen.</div>
+                  <div className="muted-cell">
+                    Keine markierten Überschneidungen.
+                  </div>
                 ) : (
                   <ul>
                     {teacherConflicts.map((entry, index) => (
@@ -947,8 +1276,8 @@ function App() {
                 <tbody>
                   {Object.entries(statsByClassAndSubject).flatMap(
                     ([klasse, subjects]) => {
-                      const subjectEntries = Object.entries(subjects).sort((a, b) =>
-                        a[0].localeCompare(b[0], "de")
+                      const subjectEntries = Object.entries(subjects).sort(
+                        (a, b) => a[0].localeCompare(b[0], "de")
                       );
 
                       if (subjectEntries.length === 0) {
@@ -1078,11 +1407,11 @@ function App() {
               onClick={() => setSelectedBlock(b.id)}
               onDoubleClick={() => openEditModal(b, true)}
               onDragStart={(e) => e.dataTransfer.setData("id", b.id)}
-              title={`${b.fach} – ${b.klasse} – ${b.lehrer}`}
+              title={`${b.fach} – ${b.klasse} – ${getTeacherDisplay(b)}`}
             >
               <div className="fach">{b.fach}</div>
               <div className="klasse">{b.klasse}</div>
-              <div className="lehrer">{b.lehrer}</div>
+              <div className="lehrer">{getTeacherDisplay(b)}</div>
               {b.dauer === 2 && (
                 <div className="dauer-label">Doppelstunde</div>
               )}
@@ -1097,12 +1426,13 @@ function App() {
 
       {showFormModal && (
         <div className="modal-overlay no-print" onClick={closeFormModal}>
-          <div
-            className="modal-card"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{formMode === "create" ? "Block erstellen" : "Block bearbeiten"}</h2>
+              <h2>
+                {formMode === "create"
+                  ? "Block erstellen"
+                  : "Block bearbeiten"}
+              </h2>
               <button className="modal-close-button" onClick={closeFormModal}>
                 ×
               </button>
@@ -1138,15 +1468,50 @@ function App() {
                 </select>
               </label>
 
-              <label className="form-field">
-                <span>Lehrperson</span>
-                <input
-                  type="text"
-                  value={formData.lehrer}
-                  onChange={(e) => handleFormChange("lehrer", e.target.value)}
-                  placeholder="z. B. Herr Meier"
-                />
-              </label>
+              <div className="form-field">
+                <span>Lehrpersonen</span>
+
+                <div className="teacher-fields">
+                  {formData.lehrpersonen.map((teacher, index) => (
+                    <div key={index} className="teacher-row">
+                      <input
+                        type="text"
+                        value={teacher}
+                        onChange={(e) =>
+                          handleTeacherChange(index, e.target.value)
+                        }
+                        placeholder={
+                          index === 0
+                            ? "z. B. Herr Meier"
+                            : "weitere Lehrperson"
+                        }
+                      />
+
+                      <div className="teacher-row-actions">
+                        {formData.lehrpersonen.length > 1 && (
+                          <button
+                            type="button"
+                            className="small-button"
+                            onClick={() => removeTeacherField(index)}
+                          >
+                            −
+                          </button>
+                        )}
+
+                        {index === formData.lehrpersonen.length - 1 && (
+                          <button
+                            type="button"
+                            className="small-button"
+                            onClick={addTeacherField}
+                          >
+                            +
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               <label className="form-field">
                 <span>Dauer</span>
@@ -1163,7 +1528,8 @@ function App() {
                 !editingIsPalette &&
                 blockData.some((b) => b.id === editingBlockId) && (
                   <div className="form-hint">
-                    Die Klasse eines bereits gesetzten Blocks kann hier nicht geändert werden.
+                    Die Klasse eines bereits gesetzten Blocks kann hier nicht
+                    geändert werden.
                   </div>
                 )}
 

@@ -3,6 +3,7 @@
   --cell-height: 60px;
   --grid-gap: 4px;
   --font-scale: 1;
+  --time-col-width: 120px;
 }
 
 body {
@@ -337,7 +338,7 @@ select {
 
 .modal-card {
   width: 100%;
-  max-width: 460px;
+  max-width: 520px;
   background: white;
   border-radius: 14px;
   padding: 18px;
@@ -390,11 +391,103 @@ select {
   border-radius: 8px;
 }
 
+.teacher-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.teacher-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.teacher-row input {
+  flex: 1;
+}
+
+.teacher-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.small-button {
+  min-width: 38px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 4px;
+}
+
+.summary-page {
+  padding: 16px;
+}
+
+.summary-subtitle {
+  margin-bottom: 12px;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.single-schedule-print-block {
+  margin-bottom: 40px;
+  page-break-after: always;
+  break-after: page;
+  background: white;
+}
+
+.single-schedule-print-block:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+
+.single-plan-wrapper {
+  overflow-x: auto;
+  margin-top: 12px;
+}
+
+.single-grid {
+  display: grid;
+  grid-template-columns: var(--time-col-width) repeat(5, var(--cell-width));
+  gap: var(--grid-gap);
+  align-items: stretch;
+}
+
+.read-only-cell {
+  position: relative;
+  min-height: var(--cell-height);
+}
+
+.read-only-block {
+  position: absolute;
+}
+
+.header-cell {
+  font-weight: bold;
+}
+
+.summary-view .day-header,
+.summary-view .class-header,
+.summary-view .time,
+.summary-view .cell {
+  box-sizing: border-box;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 10mm;
 }
 
 @media print {
@@ -405,10 +498,15 @@ select {
   }
 
   .App {
-    padding: 8mm;
+    padding: 0;
   }
 
-  .no-print {
+  .no-print,
+  .toolbar,
+  .modal-overlay,
+  .palette-section,
+  .stats-panel,
+  .zoom-info {
     display: none !important;
   }
 
@@ -417,6 +515,7 @@ select {
     border: none;
     padding: 0;
     border-radius: 0;
+    background: white;
   }
 
   .grid {
@@ -428,11 +527,102 @@ select {
   .class-header,
   .time {
     break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   .block,
   .scheduled-block {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  .summary-view {
+    --time-col-width: 23mm;
+    --cell-width: 31mm;
+    --cell-height: 14mm;
+    --grid-gap: 1.8mm;
+    --font-scale: 0.76;
+  }
+
+  .summary-view .App,
+  .summary-page {
+    padding: 0;
+    margin: 0;
+  }
+
+  .summary-page h1 {
+    margin: 0 0 4mm 0;
+    font-size: 16pt;
+  }
+
+  .single-schedule-print-block {
+    margin: 0;
+    padding: 0;
+    page-break-after: always;
+    break-after: page;
+    break-inside: avoid;
+  }
+
+  .single-schedule-print-block:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  .single-schedule-print-block h2 {
+    margin: 0 0 2mm 0;
+    font-size: 12pt;
+  }
+
+  .summary-subtitle {
+    margin: 0 0 3mm 0;
+    font-size: 8.5pt;
+    color: #444;
+  }
+
+  .single-plan-wrapper {
+    overflow: visible;
+    margin-top: 0;
+  }
+
+  .single-grid {
+    width: 100%;
+    gap: var(--grid-gap);
+  }
+
+  .summary-view .day-header,
+  .summary-view .time {
+    font-size: calc(0.68rem * var(--font-scale));
+    font-weight: 600;
+    padding: 1mm;
+  }
+
+  .summary-view .read-only-cell {
+    min-height: var(--cell-height);
+    overflow: visible;
+  }
+
+  .summary-view .block {
+    padding: 1.2mm;
+    text-shadow: none;
+  }
+
+  .summary-view .fach {
+    font-size: calc(0.74rem * var(--font-scale));
+    line-height: 1.05;
+  }
+
+  .summary-view .klasse,
+  .summary-view .lehrer,
+  .summary-view .dauer-label {
+    font-size: calc(0.58rem * var(--font-scale));
+    line-height: 1.05;
+  }
+
+  .summary-view .conflict-badge {
+    width: 4mm;
+    height: 4mm;
+    top: 1mm;
+    right: 1mm;
+    font-size: 7pt;
   }
 }
