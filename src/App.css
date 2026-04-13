@@ -198,6 +198,18 @@ select {
   font-weight: bold;
   font-size: calc(0.8rem * var(--font-scale));
   line-height: 1.1;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.fach-zusatz {
+  font-weight: 600;
+  font-size: calc(0.62rem * var(--font-scale));
+  opacity: 0.95;
+  text-transform: lowercase;
 }
 
 .klasse {
@@ -609,6 +621,10 @@ select {
   .summary-view .fach {
     font-size: calc(0.74rem * var(--font-scale));
     line-height: 1.05;
+  }
+
+  .summary-view .fach-zusatz {
+    font-size: calc(0.54rem * var(--font-scale));
   }
 
   .summary-view .klasse,

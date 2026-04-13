@@ -23,8 +23,11 @@ const times = [
   "16:20 - 17:05",
 ];
 
+const subjectAddons = ["TT", "S", "R", "G1", "G2", "G3"];
+
 const emptyFormData = {
   fach: "",
+  fachZusatz: "",
   klasse: classes[0],
   lehrpersonen: [""],
   dauer: 1,
@@ -75,6 +78,11 @@ function App() {
     return [""];
   }, []);
 
+  const normalizeSubjectAddon = useCallback((value) => {
+    const normalized = String(value || "").trim().toUpperCase();
+    return subjectAddons.includes(normalized) ? normalized : "";
+  }, []);
+
   const getTeacherListFromBlock = useCallback(
     (block) => {
       if (Array.isArray(block.lehrpersonen)) {
@@ -100,6 +108,16 @@ function App() {
     [getTeacherListFromBlock]
   );
 
+  const getSubjectDisplay = useCallback((block) => {
+    const fach = String(block?.fach || "").trim();
+    const fachZusatz = String(block?.fachZusatz || "").trim();
+
+    if (!fach) return "";
+    if (!fachZusatz) return fach;
+
+    return `${fach} (${fachZusatz.toLowerCase()})`;
+  }, []);
+
   const normalizeBlock = useCallback(
     (b) => {
       const klasse = classes.includes(b.klasse) ? b.klasse : classes[0];
@@ -121,11 +139,12 @@ function App() {
         tag: b.tag ?? null,
         lektion: Number.isInteger(b.lektion) ? b.lektion : null,
         fach: b.fach ?? "",
+        fachZusatz: normalizeSubjectAddon(b.fachZusatz),
         klasse,
         lehrpersonen,
       };
     },
-    [normalizeTeacherList]
+    [normalizeTeacherList, normalizeSubjectAddon]
   );
 
   const createId = () => {
@@ -455,7 +474,7 @@ function App() {
               tag: block.tag,
               zeit: times[block.lektion] || `Lektion ${block.lektion + 1}`,
               klasse: block.klasse || "Ohne Klasse",
-              fach: block.fach || "Ohne Fach",
+              fach: getSubjectDisplay(block) || "Ohne Fach",
             });
           }
         }
@@ -475,7 +494,7 @@ function App() {
 
       return a.lehrer.localeCompare(b.lehrer, "de");
     });
-  }, [blockData, getTeacherListFromBlock]);
+  }, [blockData, getTeacherListFromBlock, getSubjectDisplay]);
 
   const openCreateModal = () => {
     setFormMode("create");
@@ -483,6 +502,7 @@ function App() {
     setEditingIsPalette(true);
     setFormData({
       fach: "",
+      fachZusatz: "",
       klasse: classes[0],
       lehrpersonen: [""],
       dauer: 1,
@@ -498,6 +518,7 @@ function App() {
     setEditingIsPalette(isPalette);
     setFormData({
       fach: block.fach || "",
+      fachZusatz: block.fachZusatz || "",
       klasse: classes.includes(block.klasse) ? block.klasse : classes[0],
       lehrpersonen: existingTeachers.length > 0 ? existingTeachers : [""],
       dauer: block.dauer === 2 ? 2 : 1,
@@ -515,7 +536,12 @@ function App() {
   const handleFormChange = (field, value) => {
     setFormData((prev) => ({
       ...prev,
-      [field]: field === "dauer" ? Number(value) : value,
+      [field]:
+        field === "dauer"
+          ? Number(value)
+          : field === "fachZusatz"
+          ? String(value || "").toUpperCase()
+          : value,
     }));
   };
 
@@ -549,6 +575,7 @@ function App() {
     e.preventDefault();
 
     const fach = formData.fach.trim();
+    const fachZusatz = normalizeSubjectAddon(formData.fachZusatz);
     const klasse = formData.klasse;
     const lehrpersonen = formData.lehrpersonen
       .map((entry) => String(entry || "").trim())
@@ -576,6 +603,7 @@ function App() {
         {
           id: createId(),
           fach,
+          fachZusatz,
           klasse,
           lehrpersonen,
           dauer,
@@ -631,6 +659,7 @@ function App() {
             ? {
                 ...x,
                 fach,
+                fachZusatz,
                 klasse,
                 lehrpersonen,
                 dauer,
@@ -647,7 +676,7 @@ function App() {
       setPaletteBlocks((prev) =>
         prev.map((x) =>
           x.id === currentBlock.id
-            ? { ...x, fach, klasse, lehrpersonen, dauer }
+            ? { ...x, fach, fachZusatz, klasse, lehrpersonen, dauer }
             : x
         )
       );
@@ -655,7 +684,7 @@ function App() {
       setBlockData((prev) =>
         prev.map((x) =>
           x.id === currentBlock.id
-            ? { ...x, fach, klasse, lehrpersonen, dauer }
+            ? { ...x, fach, fachZusatz, klasse, lehrpersonen, dauer }
             : x
         )
       );
@@ -767,7 +796,7 @@ function App() {
 
     blockData.forEach((block) => {
       const klasse = block.klasse || "Ohne Klasse";
-      const fach = block.fach || "Ohne Fach";
+      const fach = getSubjectDisplay(block) || "Ohne Fach";
       const count = block.dauer || 1;
 
       if (!map[klasse]) {
@@ -782,7 +811,7 @@ function App() {
     });
 
     return map;
-  }, [blockData]);
+  }, [blockData, getSubjectDisplay]);
 
   const statsByTeacher = useMemo(() => {
     const map = {};
@@ -850,14 +879,19 @@ function App() {
               ? `Achtung: ${getTeacherDisplay(
                   b
                 )} ist am ${b.tag} parallel eingeplant.`
-              : `${b.fach} – ${b.klasse} – ${getTeacherDisplay(b)}`
+              : `${getSubjectDisplay(b)} – ${b.klasse} – ${getTeacherDisplay(b)}`
           }
           draggable
           onClick={() => setSelectedBlock(b.id)}
           onDoubleClick={() => openEditModal(b, false)}
           onDragStart={(e) => e.dataTransfer.setData("id", b.id)}
         >
-          <div className="fach">{b.fach}</div>
+          <div className="fach">
+            {b.fach}
+            {b.fachZusatz && (
+              <span className="fach-zusatz">({b.fachZusatz.toLowerCase()})</span>
+            )}
+          </div>
           <div className="klasse">{b.klasse}</div>
           <div className="lehrer">{getTeacherDisplay(b)}</div>
           {dauer === 2 && <div className="dauer-label">Doppelstunde</div>}
@@ -896,9 +930,14 @@ function App() {
               zIndex: teacherOverlap ? 20 : 10,
               cursor: "default",
             }}
-            title={`${b.fach} – ${b.klasse} – ${getTeacherDisplay(b)}`}
+            title={`${getSubjectDisplay(b)} – ${b.klasse} – ${getTeacherDisplay(b)}`}
           >
-            <div className="fach">{b.fach}</div>
+            <div className="fach">
+              {b.fach}
+              {b.fachZusatz && (
+                <span className="fach-zusatz">({b.fachZusatz.toLowerCase()})</span>
+              )}
+            </div>
             <div className="klasse">{b.klasse}</div>
             <div className="lehrer">{getTeacherDisplay(b)}</div>
             {dauer === 2 && <div className="dauer-label">Doppelstunde</div>}
@@ -1407,9 +1446,14 @@ function App() {
               onClick={() => setSelectedBlock(b.id)}
               onDoubleClick={() => openEditModal(b, true)}
               onDragStart={(e) => e.dataTransfer.setData("id", b.id)}
-              title={`${b.fach} – ${b.klasse} – ${getTeacherDisplay(b)}`}
+              title={`${getSubjectDisplay(b)} – ${b.klasse} – ${getTeacherDisplay(b)}`}
             >
-              <div className="fach">{b.fach}</div>
+              <div className="fach">
+                {b.fach}
+                {b.fachZusatz && (
+                  <span className="fach-zusatz">({b.fachZusatz.toLowerCase()})</span>
+                )}
+              </div>
               <div className="klasse">{b.klasse}</div>
               <div className="lehrer">{getTeacherDisplay(b)}</div>
               {b.dauer === 2 && (
@@ -1447,6 +1491,23 @@ function App() {
                   onChange={(e) => handleFormChange("fach", e.target.value)}
                   placeholder="z. B. Mathematik"
                 />
+              </label>
+
+              <label className="form-field">
+                <span>Zusatz</span>
+                <select
+                  value={formData.fachZusatz}
+                  onChange={(e) =>
+                    handleFormChange("fachZusatz", e.target.value)
+                  }
+                >
+                  <option value="">kein Zusatz</option>
+                  {subjectAddons.map((addon) => (
+                    <option key={addon} value={addon}>
+                      ({addon.toLowerCase()})
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label className="form-field">
