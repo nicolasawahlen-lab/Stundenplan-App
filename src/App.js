@@ -23,7 +23,7 @@ const times = [
   "16:20 - 17:05",
 ];
 
-const subjectAddons = ["TT", "S", "R", "G1", "G2", "G3"];
+const subjectAddons = ["TT", "S", "R", "Sek/Real", "G1", "G2", "G3"];
 
 const emptyFormData = {
   fach: "",
