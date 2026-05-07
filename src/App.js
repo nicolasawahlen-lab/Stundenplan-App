@@ -33,6 +33,17 @@ const emptyFormData = {
   dauer: 1,
 };
 
+const normalizeDuration = (value) => {
+  const number = Number(value);
+  return number === 2 || number === 3 ? number : 1;
+};
+
+const getDurationLabel = (dauer) => {
+  if (dauer === 2) return "Doppelstunde";
+  if (dauer === 3) return "Triple-Lektion";
+  return "";
+};
+
 const getViewFromHash = () => {
   const hash = window.location.hash.replace("#", "");
 
@@ -79,26 +90,28 @@ function App() {
   }, []);
 
   const normalizeSubjectAddon = useCallback((value) => {
-    const normalized = String(value || "").trim().toUpperCase();
-    return subjectAddons.includes(normalized) ? normalized : "";
+    const raw = String(value || "").trim();
+
+    const match = subjectAddons.find(
+      (addon) => addon.toLowerCase() === raw.toLowerCase()
+    );
+
+    return match || "";
   }, []);
 
-  const getTeacherListFromBlock = useCallback(
-    (block) => {
-      if (Array.isArray(block.lehrpersonen)) {
-        return block.lehrpersonen
-          .map((entry) => String(entry || "").trim())
-          .filter(Boolean);
-      }
+  const getTeacherListFromBlock = useCallback((block) => {
+    if (Array.isArray(block.lehrpersonen)) {
+      return block.lehrpersonen
+        .map((entry) => String(entry || "").trim())
+        .filter(Boolean);
+    }
 
-      if (typeof block.lehrer === "string" && block.lehrer.trim()) {
-        return [block.lehrer.trim()];
-      }
+    if (typeof block.lehrer === "string" && block.lehrer.trim()) {
+      return [block.lehrer.trim()];
+    }
 
-      return [];
-    },
-    []
-  );
+    return [];
+  }, []);
 
   const getTeacherDisplay = useCallback(
     (block) => {
@@ -133,7 +146,7 @@ function App() {
             : typeof crypto !== "undefined" && crypto.randomUUID
             ? crypto.randomUUID()
             : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        dauer: b.dauer === 2 ? 2 : 1,
+        dauer: normalizeDuration(b.dauer),
         parallelSlot:
           b.parallelSlot === 0 || b.parallelSlot === 1 ? b.parallelSlot : null,
         tag: b.tag ?? null,
@@ -521,7 +534,7 @@ function App() {
       fachZusatz: block.fachZusatz || "",
       klasse: classes.includes(block.klasse) ? block.klasse : classes[0],
       lehrpersonen: existingTeachers.length > 0 ? existingTeachers : [""],
-      dauer: block.dauer === 2 ? 2 : 1,
+      dauer: normalizeDuration(block.dauer),
     });
     setShowFormModal(true);
   };
@@ -536,12 +549,7 @@ function App() {
   const handleFormChange = (field, value) => {
     setFormData((prev) => ({
       ...prev,
-      [field]:
-        field === "dauer"
-          ? Number(value)
-          : field === "fachZusatz"
-          ? String(value || "").toUpperCase()
-          : value,
+      [field]: field === "dauer" ? Number(value) : value,
     }));
   };
 
@@ -580,7 +588,7 @@ function App() {
     const lehrpersonen = formData.lehrpersonen
       .map((entry) => String(entry || "").trim())
       .filter(Boolean);
-    const dauer = Number(formData.dauer) === 2 ? 2 : 1;
+    const dauer = normalizeDuration(formData.dauer);
 
     if (!fach) {
       alert("Bitte ein Fach eingeben.");
@@ -648,7 +656,7 @@ function App() {
 
       if (!slotStillFits.possible) {
         alert(
-          "Die neue Dauer passt am aktuellen Ort nicht. Bitte verschiebe den Block zuerst oder wähle Dauer 1."
+          "Die neue Dauer passt am aktuellen Ort nicht. Bitte verschiebe den Block zuerst oder wähle eine kürzere Dauer."
         );
         return;
       }
@@ -724,10 +732,10 @@ function App() {
 
     if (!placement.possible) {
       if (placement.reason === "out-of-range") {
-        alert("Die Doppelstunde passt hier nicht mehr nach unten.");
+        alert("Der Block passt hier nicht mehr nach unten.");
       } else {
         alert(
-          "Hier ist kein passender Parallel-Slot frei. Für eine Doppelstunde muss derselbe Slot in allen benötigten Lektionen frei sein."
+          "Hier ist kein passender Parallel-Slot frei. Für mehrstündige Blöcke muss derselbe Slot in allen benötigten Lektionen frei sein."
         );
       }
       return;
@@ -858,6 +866,7 @@ function App() {
       const slot = b.parallelSlot ?? 0;
       const dauer = b.dauer || 1;
       const teacherOverlap = hasTeacherOverlap(b);
+      const durationLabel = getDurationLabel(dauer);
 
       return (
         <div
@@ -894,7 +903,7 @@ function App() {
           </div>
           <div className="klasse">{b.klasse}</div>
           <div className="lehrer">{getTeacherDisplay(b)}</div>
-          {dauer === 2 && <div className="dauer-label">Doppelstunde</div>}
+          {durationLabel && <div className="dauer-label">{durationLabel}</div>}
           {teacherOverlap && <div className="conflict-badge">!</div>}
         </div>
       );
@@ -913,6 +922,7 @@ function App() {
         const slot = b.parallelSlot ?? 0;
         const dauer = b.dauer || 1;
         const teacherOverlap = hasTeacherOverlap(b);
+        const durationLabel = getDurationLabel(dauer);
 
         return (
           <div
@@ -940,7 +950,7 @@ function App() {
             </div>
             <div className="klasse">{b.klasse}</div>
             <div className="lehrer">{getTeacherDisplay(b)}</div>
-            {dauer === 2 && <div className="dauer-label">Doppelstunde</div>}
+            {durationLabel && <div className="dauer-label">{durationLabel}</div>}
             {teacherOverlap && <div className="conflict-badge">!</div>}
           </div>
         );
@@ -1292,8 +1302,8 @@ function App() {
                   <ul>
                     {teacherConflicts.map((entry, index) => (
                       <li key={`${entry.key}-${index}`}>
-                        <strong>{entry.lehrer}</strong>: {entry.tag}, {entry.zeit},{" "}
-                        {entry.klasse}, {entry.fach}
+                        <strong>{entry.lehrer}</strong>: {entry.tag},{" "}
+                        {entry.zeit}, {entry.klasse}, {entry.fach}
                       </li>
                     ))}
                   </ul>
@@ -1435,32 +1445,38 @@ function App() {
           onDragLeave={() => setIsPaletteDragOver(false)}
           onDrop={handleDropToPalette}
         >
-          {paletteBlocks.map((b) => (
-            <div
-              key={b.id}
-              className={`block palette-block ${
-                selectedBlock === b.id ? "selected" : ""
-              }`}
-              style={{ backgroundColor: getColor(b) }}
-              draggable
-              onClick={() => setSelectedBlock(b.id)}
-              onDoubleClick={() => openEditModal(b, true)}
-              onDragStart={(e) => e.dataTransfer.setData("id", b.id)}
-              title={`${getSubjectDisplay(b)} – ${b.klasse} – ${getTeacherDisplay(b)}`}
-            >
-              <div className="fach">
-                {b.fach}
-                {b.fachZusatz && (
-                  <span className="fach-zusatz">({b.fachZusatz.toLowerCase()})</span>
+          {paletteBlocks.map((b) => {
+            const durationLabel = getDurationLabel(b.dauer);
+
+            return (
+              <div
+                key={b.id}
+                className={`block palette-block ${
+                  selectedBlock === b.id ? "selected" : ""
+                }`}
+                style={{ backgroundColor: getColor(b) }}
+                draggable
+                onClick={() => setSelectedBlock(b.id)}
+                onDoubleClick={() => openEditModal(b, true)}
+                onDragStart={(e) => e.dataTransfer.setData("id", b.id)}
+                title={`${getSubjectDisplay(b)} – ${b.klasse} – ${getTeacherDisplay(b)}`}
+              >
+                <div className="fach">
+                  {b.fach}
+                  {b.fachZusatz && (
+                    <span className="fach-zusatz">
+                      ({b.fachZusatz.toLowerCase()})
+                    </span>
+                  )}
+                </div>
+                <div className="klasse">{b.klasse}</div>
+                <div className="lehrer">{getTeacherDisplay(b)}</div>
+                {durationLabel && (
+                  <div className="dauer-label">{durationLabel}</div>
                 )}
               </div>
-              <div className="klasse">{b.klasse}</div>
-              <div className="lehrer">{getTeacherDisplay(b)}</div>
-              {b.dauer === 2 && (
-                <div className="dauer-label">Doppelstunde</div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
         <div className="palette-hint no-print">
           Ziehe Blöcke aus dem Stundenplan zurück in die Palette, um sie wieder
@@ -1582,6 +1598,7 @@ function App() {
                 >
                   <option value={1}>1 Lektion</option>
                   <option value={2}>2 Lektionen (Doppelstunde)</option>
+                  <option value={3}>3 Lektionen (Triple-Lektion)</option>
                 </select>
               </label>
 
