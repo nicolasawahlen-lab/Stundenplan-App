@@ -424,6 +424,29 @@ select {
   gap: 6px;
 }
 
+.checkbox-field {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.checkbox-field input {
+  width: auto;
+  margin-top: 3px;
+}
+
+.checkbox-field small {
+  display: block;
+  color: #666;
+  font-weight: normal;
+  margin-top: 3px;
+}
+
+.conflict-ok-label {
+  font-size: calc(0.52rem * var(--font-scale));
+  opacity: 0.9;
+}
+
 .small-button {
   min-width: 38px;
   width: 38px;
