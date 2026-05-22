@@ -665,3 +665,34 @@ select {
     font-size: 7pt;
   }
 }
+/* Ergänzung für App.css: Scrollbares Bearbeitungsfenster */
+
+.modal-card {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.checkbox-field {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.checkbox-field input {
+  width: auto;
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.checkbox-field small {
+  display: block;
+  color: #666;
+  font-weight: normal;
+  margin-top: 3px;
+  line-height: 1.3;
+}
+
+.conflict-ok-label {
+  font-size: calc(0.52rem * var(--font-scale));
+  opacity: 0.9;
+}

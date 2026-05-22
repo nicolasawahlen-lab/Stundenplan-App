@@ -31,6 +31,7 @@ const emptyFormData = {
   klasse: classes[0],
   lehrpersonen: [""],
   dauer: 1,
+  allowTeacherConflict: false,
 };
 
 const normalizeDuration = (value) => {
@@ -121,6 +122,21 @@ function App() {
     [getTeacherListFromBlock]
   );
 
+  const isTeacherConflictAllowed = useCallback((block) => {
+    return block?.allowTeacherConflict === true;
+  }, []);
+
+  const isTeacherOverlapRelevant = useCallback(
+    (block, other) => {
+      if (isTeacherConflictAllowed(block) || isTeacherConflictAllowed(other)) {
+        return false;
+      }
+
+      return true;
+    },
+    [isTeacherConflictAllowed]
+  );
+
   const getSubjectDisplay = useCallback((block) => {
     const fach = String(block?.fach || "").trim();
     const fachZusatz = String(block?.fachZusatz || "").trim();
@@ -155,6 +171,7 @@ function App() {
         fachZusatz: normalizeSubjectAddon(b.fachZusatz),
         klasse,
         lehrpersonen,
+        allowTeacherConflict: b.allowTeacherConflict === true,
       };
     },
     [normalizeTeacherList, normalizeSubjectAddon]
@@ -431,6 +448,7 @@ function App() {
         if (other.id === block.id) return false;
         if (other.tag !== block.tag) return false;
         if (other.lektion == null) return false;
+        if (!isTeacherOverlapRelevant(block, other)) return false;
 
         const otherTeachers = getTeacherListFromBlock(other);
         if (otherTeachers.length === 0) return false;
@@ -444,7 +462,7 @@ function App() {
         return !(blockEnd < otherStart || blockStart > otherEnd);
       });
     },
-    [blockData, getTeacherListFromBlock]
+    [blockData, getTeacherListFromBlock, isTeacherOverlapRelevant]
   );
 
   const teacherConflicts = useMemo(() => {
@@ -466,6 +484,7 @@ function App() {
           if (other.id === block.id) return false;
           if (other.tag !== block.tag) return false;
           if (other.lektion == null) return false;
+          if (!isTeacherOverlapRelevant(block, other)) return false;
 
           const otherTeachers = getTeacherListFromBlock(other);
           if (!otherTeachers.includes(teacher)) return false;
@@ -507,7 +526,12 @@ function App() {
 
       return a.lehrer.localeCompare(b.lehrer, "de");
     });
-  }, [blockData, getTeacherListFromBlock, getSubjectDisplay]);
+  }, [
+    blockData,
+    getTeacherListFromBlock,
+    getSubjectDisplay,
+    isTeacherOverlapRelevant,
+  ]);
 
   const openCreateModal = () => {
     setFormMode("create");
@@ -519,6 +543,7 @@ function App() {
       klasse: classes[0],
       lehrpersonen: [""],
       dauer: 1,
+      allowTeacherConflict: false,
     });
     setShowFormModal(true);
   };
@@ -535,6 +560,7 @@ function App() {
       klasse: classes.includes(block.klasse) ? block.klasse : classes[0],
       lehrpersonen: existingTeachers.length > 0 ? existingTeachers : [""],
       dauer: normalizeDuration(block.dauer),
+      allowTeacherConflict: block.allowTeacherConflict === true,
     });
     setShowFormModal(true);
   };
@@ -589,6 +615,7 @@ function App() {
       .map((entry) => String(entry || "").trim())
       .filter(Boolean);
     const dauer = normalizeDuration(formData.dauer);
+    const allowTeacherConflict = formData.allowTeacherConflict === true;
 
     if (!fach) {
       alert("Bitte ein Fach eingeben.");
@@ -615,6 +642,7 @@ function App() {
           klasse,
           lehrpersonen,
           dauer,
+          allowTeacherConflict,
           tag: null,
           lektion: null,
           parallelSlot: null,
@@ -638,25 +666,19 @@ function App() {
       currentBlock.tag !== null &&
       currentBlock.lektion !== null
     ) {
-      if (klasse !== currentBlock.klasse) {
-        alert(
-          "Die Klasse eines bereits gesetzten Blocks kann nicht geändert werden. Verschiebe den Block zuerst zurück in die Palette oder lösche ihn und lege ihn neu an."
-        );
-        return;
-      }
-
       const slotStillFits = canPlaceBlock({
         blockId: currentBlock.id,
         day: currentBlock.tag,
         klasse,
         startLektion: currentBlock.lektion,
         dauer,
-        preferredSlot: currentBlock.parallelSlot ?? 0,
+        preferredSlot:
+          klasse === currentBlock.klasse ? currentBlock.parallelSlot ?? 0 : null,
       });
 
       if (!slotStillFits.possible) {
         alert(
-          "Die neue Dauer passt am aktuellen Ort nicht. Bitte verschiebe den Block zuerst oder wähle eine kürzere Dauer."
+          "Die neue Klasse oder Dauer passt am aktuellen Ort nicht. In der Ziel-Klassenspalte ist zu dieser Zeit kein passender Parallel-Slot frei."
         );
         return;
       }
@@ -671,6 +693,7 @@ function App() {
                 klasse,
                 lehrpersonen,
                 dauer,
+                allowTeacherConflict,
                 parallelSlot: slotStillFits.slot,
               }
             : x
@@ -684,7 +707,15 @@ function App() {
       setPaletteBlocks((prev) =>
         prev.map((x) =>
           x.id === currentBlock.id
-            ? { ...x, fach, fachZusatz, klasse, lehrpersonen, dauer }
+            ? {
+                ...x,
+                fach,
+                fachZusatz,
+                klasse,
+                lehrpersonen,
+                dauer,
+                allowTeacherConflict,
+              }
             : x
         )
       );
@@ -692,7 +723,15 @@ function App() {
       setBlockData((prev) =>
         prev.map((x) =>
           x.id === currentBlock.id
-            ? { ...x, fach, fachZusatz, klasse, lehrpersonen, dauer }
+            ? {
+                ...x,
+                fach,
+                fachZusatz,
+                klasse,
+                lehrpersonen,
+                dauer,
+                allowTeacherConflict,
+              }
             : x
         )
       );
@@ -884,7 +923,13 @@ function App() {
             zIndex: teacherOverlap ? 20 : 10,
           }}
           title={
-            teacherOverlap
+            b.allowTeacherConflict
+              ? `${getSubjectDisplay(
+                  b
+                )} – ${b.klasse} – ${getTeacherDisplay(
+                  b
+                )} – LP-Überschneidung erlaubt`
+              : teacherOverlap
               ? `Achtung: ${getTeacherDisplay(
                   b
                 )} ist am ${b.tag} parallel eingeplant.`
@@ -904,6 +949,9 @@ function App() {
           <div className="klasse">{b.klasse}</div>
           <div className="lehrer">{getTeacherDisplay(b)}</div>
           {durationLabel && <div className="dauer-label">{durationLabel}</div>}
+          {b.allowTeacherConflict && (
+            <div className="conflict-ok-label">LP-Konflikt erlaubt</div>
+          )}
           {teacherOverlap && <div className="conflict-badge">!</div>}
         </div>
       );
@@ -951,6 +999,9 @@ function App() {
             <div className="klasse">{b.klasse}</div>
             <div className="lehrer">{getTeacherDisplay(b)}</div>
             {durationLabel && <div className="dauer-label">{durationLabel}</div>}
+            {b.allowTeacherConflict && (
+              <div className="conflict-ok-label">LP-Konflikt erlaubt</div>
+            )}
             {teacherOverlap && <div className="conflict-badge">!</div>}
           </div>
         );
@@ -1531,11 +1582,7 @@ function App() {
                 <select
                   value={formData.klasse}
                   onChange={(e) => handleFormChange("klasse", e.target.value)}
-                  disabled={
-                    formMode === "edit" &&
-                    !editingIsPalette &&
-                    blockData.some((b) => b.id === editingBlockId)
-                  }
+                  
                 >
                   {classes.map((klasse) => (
                     <option key={klasse} value={klasse}>
@@ -1602,12 +1649,29 @@ function App() {
                 </select>
               </label>
 
+              <label className="checkbox-field">
+                <input
+                  type="checkbox"
+                  checked={formData.allowTeacherConflict === true}
+                  onChange={(e) =>
+                    handleFormChange("allowTeacherConflict", e.target.checked)
+                  }
+                />
+                <span>
+                  LP-Überschneidung für diesen Block erlauben
+                  <small>
+                    Für IVE, Projektunterricht oder andere echte Parallel-Einsätze.
+                    Der Block bleibt trotzdem im LP-Stundenplan sichtbar.
+                  </small>
+                </span>
+              </label>
+
               {formMode === "edit" &&
                 !editingIsPalette &&
                 blockData.some((b) => b.id === editingBlockId) && (
                   <div className="form-hint">
-                    Die Klasse eines bereits gesetzten Blocks kann hier nicht
-                    geändert werden.
+                    Die Klasse kann geändert werden, sofern am gleichen Tag und
+                    zur gleichen Zeit in der Zielklasse ein Platz frei ist.
                   </div>
                 )}
 
