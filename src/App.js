@@ -957,8 +957,37 @@ function App() {
       );
     });
   };
+const getClassDisplayForTeacherSchedule = useCallback(
+  (block, currentTeacher) => {
+    if (!block?.allowTeacherConflict || !currentTeacher) {
+      return block.klasse;
+    }
 
-  const renderReadOnlySchedule = (title, blocks, subtitle = null) => {
+    const matchingBlocks = blockData.filter((other) => {
+      if (!other.allowTeacherConflict) return false;
+      if (other.tag !== block.tag) return false;
+      if (other.lektion !== block.lektion) return false;
+      if ((other.dauer || 1) !== (block.dauer || 1)) return false;
+      if (String(other.fach || "").trim() !== String(block.fach || "").trim()) return false;
+
+      return getTeacherListFromBlock(other).includes(currentTeacher);
+    });
+
+    const numbers = [...new Set(
+      matchingBlocks
+        .map((b) => Number(String(b.klasse || "").match(/\d+/)?.[0]))
+        .filter(Number.isFinite)
+    )].sort((a, b) => a - b);
+
+    if (numbers.length <= 1) return block.klasse;
+
+    return `${numbers[0]}. - ${numbers[numbers.length - 1]}. Klasse`;
+  },
+  [blockData, getTeacherListFromBlock]
+);
+
+  const renderReadOnlySchedule = (title, blocks, subtitle = null, options = {}) => {
+  const isTeacherSchedule = options.type === "teacher";
     const renderReadOnlyBlocksInCell = (day, rowIndex) => {
       const blocksStartingHere = blocks
         .filter((b) => b.tag === day && b.lektion === rowIndex)
@@ -996,8 +1025,15 @@ function App() {
                 <span className="fach-zusatz">({b.fachZusatz.toLowerCase()})</span>
               )}
             </div>
-            <div className="klasse">{b.klasse}</div>
-            <div className="lehrer">{getTeacherDisplay(b)}</div>
+            <div className="klasse">
+  {isTeacherSchedule
+    ? getClassDisplayForTeacherSchedule(b, title)
+    : b.klasse}
+</div>
+
+{!isTeacherSchedule && (
+  <div className="teacher">{getTeacherDisplay(b)}</div>
+)}
             {durationLabel && <div className="dauer-label">{durationLabel}</div>}
             {b.allowTeacherConflict && (
               <div className="conflict-ok-label">LP-Konflikt erlaubt</div>
@@ -1219,10 +1255,11 @@ function App() {
             );
 
             return renderReadOnlySchedule(
-              lehrer,
-              teacherBlocks,
-              "Nur Ansicht – Änderungen bitte auf der Hauptseite vornehmen."
-            );
+  lehrer,
+  teacherBlocks,
+  "Nur Ansicht – Änderungen bitte auf der Hauptseite vornehmen.",
+  { type: "teacher" }
+);
           })
         )}
       </div>
