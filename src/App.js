@@ -206,7 +206,7 @@ function App() {
     const url = URL.createObjectURL(blob);
 
     const fileName =
-      prompt("Dateiname fÃ¼r den Stundenplan:", "stundenplan.json") ||
+      prompt("Dateiname für den Stundenplan:", "stundenplan.json") ||
       "stundenplan.json";
 
     const safeFileName = fileName.endsWith(".json")
@@ -623,7 +623,7 @@ function App() {
     }
 
     if (!klasse) {
-      alert("Bitte eine Klasse auswaehlen.");
+      alert("Bitte eine Klasse auswählen.");
       return;
     }
 
@@ -754,7 +754,7 @@ function App() {
 
     if (block.klasse !== klasse) {
       alert(
-        `Dieser Block gehoert zur ${block.klasse} und kann nur in dieser Klassen-Spalte gesetzt werden.`
+        `Dieser Block gehört zur ${block.klasse} und kann nur in dieser Klassen-Spalte gesetzt werden.`
       );
       return;
     }
@@ -774,7 +774,7 @@ function App() {
         alert("Der Block passt hier nicht mehr nach unten.");
       } else {
         alert(
-          "Hier ist kein passender Parallel-Slot frei. Fuer mehrstuendige Bloecke muss derselbe Slot in allen benoetigten Lektionen frei sein."
+          "Hier ist kein passender Parallel-Slot frei. Für mehrstündige Blöcke muss derselbe Slot in allen benötigten Lektionen frei sein."
         );
       }
       return;
@@ -899,27 +899,9 @@ function App() {
       )
       .sort((a, b) => (a.parallelSlot ?? 0) - (b.parallelSlot ?? 0));
 
-    const visibleBlocksStartingHere = isTeacherSchedule
-  ? blocksStartingHere.filter((block, index, allBlocks) => {
-      const groupKey = `${block.tag}-${block.lektion}-${block.dauer || 1}-${String(
-        block.fach || ""
-      ).trim()}-${getClassDisplayForTeacherSchedule(block, title)}`;
+    const isSingleBlock = blocksStartingHere.length === 1;
 
-      return (
-        allBlocks.findIndex((other) => {
-          const otherGroupKey = `${other.tag}-${other.lektion}-${other.dauer || 1}-${String(
-            other.fach || ""
-          ).trim()}-${getClassDisplayForTeacherSchedule(other, title)}`;
-
-          return otherGroupKey === groupKey;
-        }) === index
-      );
-    })
-  : blocksStartingHere;
-
-const isSingleBlock = visibleBlocksStartingHere.length === 1;
-
-    return visibleBlocksStartingHere.map((b) => {
+    return blocksStartingHere.map((b) => {
       const slot = b.parallelSlot ?? 0;
       const dauer = b.dauer || 1;
       const teacherOverlap = hasTeacherOverlap(b);
@@ -933,8 +915,8 @@ const isSingleBlock = visibleBlocksStartingHere.length === 1;
           } ${teacherOverlap ? "teacher-overlap" : ""}`}
           style={{
             backgroundColor: getColor(b),
-            left: isTeacherSchedule ? "0%" : isSingleBlock ? "0%" : slot === 0 ? "0%" : "50%",
-            width: isTeacherSchedule ? "100%" : isSingleBlock ? "100%" : "50%",
+            left: isSingleBlock ? "0%" : slot === 0 ? "0%" : "50%",
+            width: isSingleBlock ? "100%" : "50%",
             height: `calc(${dauer} * var(--cell-height) + ${
               dauer - 1
             } * var(--grid-gap))`,
@@ -944,14 +926,14 @@ const isSingleBlock = visibleBlocksStartingHere.length === 1;
             b.allowTeacherConflict
               ? `${getSubjectDisplay(
                   b
-                )} â€“ ${b.klasse} â€“ ${getTeacherDisplay(
+                )} – ${b.klasse} – ${getTeacherDisplay(
                   b
-                )} â€“ LP-Ãœberschneidung erlaubt`
+                )} – LP-Überschneidung erlaubt`
               : teacherOverlap
               ? `Achtung: ${getTeacherDisplay(
                   b
                 )} ist am ${b.tag} parallel eingeplant.`
-              : `${getSubjectDisplay(b)} â€“ ${b.klasse} â€“ ${getTeacherDisplay(b)}`
+              : `${getSubjectDisplay(b)} – ${b.klasse} – ${getTeacherDisplay(b)}`
           }
           draggable
           onClick={() => setSelectedBlock(b.id)}
@@ -1035,7 +1017,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
               zIndex: teacherOverlap ? 20 : 10,
               cursor: "default",
             }}
-            title={`${getSubjectDisplay(b)} â€“ ${b.klasse} â€“ ${getTeacherDisplay(b)}`}
+            title={`${getSubjectDisplay(b)} – ${b.klasse} – ${getTeacherDisplay(b)}`}
           >
             <div className="fach">
               {b.fach}
@@ -1230,21 +1212,21 @@ const getClassDisplayForTeacherSchedule = useCallback(
     return (
       <div className="summary-page">
         <div className="toolbar no-print">
-          <button onClick={() => navigateTo("main")}>â† Zur Hauptseite</button>
+          <button onClick={() => navigateTo("main")}>← Zur Hauptseite</button>
           <button onClick={() => navigateTo("lehrpersonen")}>
             Zur LP-Ansicht
           </button>
           <button onClick={handlePrint}>Drucken</button>
         </div>
 
-        <h1>Stundenplaene nach Klassen</h1>
+        <h1>Stundenpläne nach Klassen</h1>
 
         {classes.map((klasse) => {
           const classBlocks = blockData.filter((b) => b.klasse === klasse);
           return renderReadOnlySchedule(
             klasse,
             classBlocks,
-            "Nur Ansicht â€“ Ã„nderungen bitte auf der Hauptseite vornehmen."
+            "Nur Ansicht – Änderungen bitte auf der Hauptseite vornehmen."
           );
         })}
       </div>
@@ -1255,14 +1237,14 @@ const getClassDisplayForTeacherSchedule = useCallback(
     return (
       <div className="summary-page">
         <div className="toolbar no-print">
-          <button onClick={() => navigateTo("main")}>â† Zur Hauptseite</button>
+          <button onClick={() => navigateTo("main")}>← Zur Hauptseite</button>
           <button onClick={() => navigateTo("klassen")}>
             Zur Klassen-Ansicht
           </button>
           <button onClick={handlePrint}>Drucken</button>
         </div>
 
-        <h1>Stundenplaene nach Lehrpersonen</h1>
+        <h1>Stundenpläne nach Lehrpersonen</h1>
 
         {teachers.length === 0 ? (
           <p>Es sind noch keine Lehrpersonen im Stundenplan eingetragen.</p>
@@ -1275,7 +1257,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
             return renderReadOnlySchedule(
   lehrer,
   teacherBlocks,
-  "Nur Ansicht â€“ Ã„nderungen bitte auf der Hauptseite vornehmen.",
+  "Nur Ansicht – Änderungen bitte auf der Hauptseite vornehmen.",
   { type: "teacher" }
 );
           })
@@ -1317,8 +1299,8 @@ const getClassDisplayForTeacherSchedule = useCallback(
         <button onClick={() => setShowStats((prev) => !prev)}>
           {showStats ? "Statistik ausblenden" : "Statistik anzeigen"}
         </button>
-        <button onClick={() => navigateTo("klassen")}>Klassenplaene</button>
-        <button onClick={() => navigateTo("lehrpersonen")}>LP-Plaene</button>
+        <button onClick={() => navigateTo("klassen")}>Klassenpläne</button>
+        <button onClick={() => navigateTo("lehrpersonen")}>LP-Pläne</button>
         <button onClick={exportData}>Speichern / Exportieren</button>
         <button onClick={() => fileInputRef.current?.click()}>
           Importieren
@@ -1357,7 +1339,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
               }
               onClick={() => setStatsView("overview")}
             >
-              Ãœbersicht
+              Übersicht
             </button>
             <button
               className={
@@ -1393,7 +1375,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
                 <div className="stats-card warning-card">
                   <div className="stats-number">{teacherConflicts.length}</div>
                   <div className="stats-label">
-                    LP-Hinweise / Ãœberschneidungen
+                    LP-Hinweise / Überschneidungen
                   </div>
                 </div>
               </div>
@@ -1439,7 +1421,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
                         return [
                           <tr key={`${klasse}-empty`}>
                             <td>{klasse}</td>
-                            <td className="muted-cell">â€“</td>
+                            <td className="muted-cell">–</td>
                             <td className="muted-cell">0</td>
                           </tr>,
                         ];
@@ -1471,7 +1453,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
                 <tbody>
                   {statsByTeacher.length === 0 ? (
                     <tr>
-                      <td className="muted-cell">â€“</td>
+                      <td className="muted-cell">–</td>
                       <td className="muted-cell">0</td>
                     </tr>
                   ) : (
@@ -1565,7 +1547,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
                 onClick={() => setSelectedBlock(b.id)}
                 onDoubleClick={() => openEditModal(b, true)}
                 onDragStart={(e) => e.dataTransfer.setData("id", b.id)}
-                title={`${getSubjectDisplay(b)} â€“ ${b.klasse} â€“ ${getTeacherDisplay(b)}`}
+                title={`${getSubjectDisplay(b)} – ${b.klasse} – ${getTeacherDisplay(b)}`}
               >
                 <div className="fach">
                   {b.fach}
@@ -1585,7 +1567,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
           })}
         </div>
         <div className="palette-hint no-print">
-          Ziehe Bloecke aus dem Stundenplan zurÃ¼ck in die Palette, um sie wieder
+          Ziehe Blöcke aus dem Stundenplan zurück in die Palette, um sie wieder
           als Vorratsblock abzulegen.
         </div>
       </div>
@@ -1600,7 +1582,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
                   : "Block bearbeiten"}
               </h2>
               <button className="modal-close-button" onClick={closeFormModal}>
-                Ã—
+                ×
               </button>
             </div>
 
@@ -1673,7 +1655,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
                             className="small-button"
                             onClick={() => removeTeacherField(index)}
                           >
-                            âˆ’
+                            −
                           </button>
                         )}
 
@@ -1715,7 +1697,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
                 <span>
                   LP-Überschneidung für diesen Block erlauben
                   <small>
-                    FÜr IVE, Projektunterricht oder andere echte Parallel-Einsätze.
+                    Für IVE, Projektunterricht oder andere echte Parallel-Einsätze.
                     Der Block bleibt trotzdem im LP-Stundenplan sichtbar.
                   </small>
                 </span>
