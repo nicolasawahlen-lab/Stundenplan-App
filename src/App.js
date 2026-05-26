@@ -1053,12 +1053,12 @@ const getClassDisplayForTeacherSchedule = useCallback(
           style={{
             backgroundColor: getColor(b),
             left:
-              forceFullWidth || isSingleBlock
-                ? "0%"
-                : slot === 0
-                ? "0%"
-                : "50%",
-            width: forceFullWidth || isSingleBlock ? "100%" : "50%",
+            isTeacherSchedule || isSingleBlock
+            ? "0%"
+            : slot === 0
+            ? "0%"
+            : "50%",
+            width: isTeacherSchedule || isSingleBlock ? "100%" : "50%",
             height: `calc(${dauer} * var(--cell-height) + ${
               dauer - 1
             } * var(--grid-gap))`,

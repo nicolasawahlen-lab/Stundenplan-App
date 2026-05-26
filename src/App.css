@@ -764,3 +764,7 @@ select {
 .summary-view .combined-teacher-block .klasse {
   font-weight: 600;
 }
+.summary-view .read-only-block {
+  left: 0% !important;
+  width: 100% !important;
+}
