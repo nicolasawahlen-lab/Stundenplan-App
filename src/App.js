@@ -623,7 +623,7 @@ function App() {
     }
 
     if (!klasse) {
-      alert("Bitte eine Klasse auswÃ¤hlen.");
+      alert("Bitte eine Klasse auswaehlen.");
       return;
     }
 
@@ -774,7 +774,7 @@ function App() {
         alert("Der Block passt hier nicht mehr nach unten.");
       } else {
         alert(
-          "Hier ist kein passender Parallel-Slot frei. FÃ¼r mehrstÃ¼ndige Blöcke muss derselbe Slot in allen benÃ¶tigten Lektionen frei sein."
+          "Hier ist kein passender Parallel-Slot frei. Fuer mehrstuendige Bloecke muss derselbe Slot in allen benoetigten Lektionen frei sein."
         );
       }
       return;
@@ -1237,7 +1237,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
           <button onClick={handlePrint}>Drucken</button>
         </div>
 
-        <h1>StundenplÃ¤ne nach Klassen</h1>
+        <h1>Stundenplaene nach Klassen</h1>
 
         {classes.map((klasse) => {
           const classBlocks = blockData.filter((b) => b.klasse === klasse);
@@ -1262,7 +1262,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
           <button onClick={handlePrint}>Drucken</button>
         </div>
 
-        <h1>StundenplÃ¤ne nach Lehrpersonen</h1>
+        <h1>Stundenplaene nach Lehrpersonen</h1>
 
         {teachers.length === 0 ? (
           <p>Es sind noch keine Lehrpersonen im Stundenplan eingetragen.</p>
@@ -1384,7 +1384,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
               <div className="stats-summary">
                 <div className="stats-card">
                   <div className="stats-number">{totalScheduledBlocks}</div>
-                  <div className="stats-label">gesetzte BlÃ¶cke</div>
+                  <div className="stats-label">gesetzte Blöcke</div>
                 </div>
                 <div className="stats-card">
                   <div className="stats-number">{totalLessons}</div>
@@ -1585,7 +1585,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
           })}
         </div>
         <div className="palette-hint no-print">
-          Ziehe BlÃ¶cke aus dem Stundenplan zurÃ¼ck in die Palette, um sie wieder
+          Ziehe Bloecke aus dem Stundenplan zurÃ¼ck in die Palette, um sie wieder
           als Vorratsblock abzulegen.
         </div>
       </div>
@@ -1715,7 +1715,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
                 <span>
                   LP-Überschneidung für diesen Block erlauben
                   <small>
-                    FÜr IVE, Projektunterricht oder andere echte Parallel-EinsÃ¤tze.
+                    FÜr IVE, Projektunterricht oder andere echte Parallel-Einsätze.
                     Der Block bleibt trotzdem im LP-Stundenplan sichtbar.
                   </small>
                 </span>
