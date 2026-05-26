@@ -1017,60 +1017,111 @@ const getClassDisplayForTeacherSchedule = useCallback(
   const renderReadOnlySchedule = (title, blocks, subtitle = null, options = {}) => {
   const isTeacherSchedule = options.type === "teacher";
     const renderReadOnlyBlocksInCell = (day, rowIndex) => {
-      const blocksStartingHere = blocks
-        .filter((b) => b.tag === day && b.lektion === rowIndex)
-        .sort((a, b) => (a.parallelSlot ?? 0) - (b.parallelSlot ?? 0));
+  const blocksStartingHereRaw = blocks
+    .filter((b) => b.tag === day && b.lektion === rowIndex)
+    .sort((a, b) => (a.parallelSlot ?? 0) - (b.parallelSlot ?? 0));
 
-      const isSingleBlock = blocksStartingHere.length === 1;
+  const blocksStartingHere = isTeacherSchedule
+    ? blocksStartingHereRaw.filter((block, index, allBlocks) => {
+        const classDisplay = getClassDisplayForTeacherSchedule(block, title);
 
-      return blocksStartingHere.map((b) => {
-        const slot = b.parallelSlot ?? 0;
-        const dauer = b.dauer || 1;
-        const teacherOverlap = hasTeacherOverlap(b);
-        const durationLabel = getDurationLabel(dauer);
+        const groupKey = [
+          block.tag,
+          block.lektion,
+          block.dauer || 1,
+          String(block.fach || "").trim(),
+          String(block.fachZusatz || "").trim(),
+          classDisplay,
+        ].join("|");
 
         return (
-          <div
-            key={b.id}
-            className={`block scheduled-block read-only-block ${
-              teacherOverlap ? "teacher-overlap" : ""
-            }`}
-            style={{
-              backgroundColor: getColor(b),
-              left: isSingleBlock ? "0%" : slot === 0 ? "0%" : "50%",
-              width: isSingleBlock ? "100%" : "50%",
-              height: `calc(${dauer} * var(--cell-height) + ${
-                dauer - 1
-              } * var(--grid-gap))`,
-              zIndex: teacherOverlap ? 20 : 10,
-              cursor: "default",
-            }}
-            title={`${getSubjectDisplay(b)} – ${b.klasse} – ${getTeacherDisplay(b)}`}
-          >
-            <div className="fach">
-              {b.fach}
-              {b.fachZusatz && (
-                <span className="fach-zusatz">({b.fachZusatz.toLowerCase()})</span>
-              )}
-            </div>
-            <div className="klasse">
-  {isTeacherSchedule
-    ? getClassDisplayForTeacherSchedule(b, title)
-    : b.klasse}
-</div>
+          allBlocks.findIndex((other) => {
+            const otherClassDisplay = getClassDisplayForTeacherSchedule(
+              other,
+              title
+            );
 
-{!isTeacherSchedule && (
-  <div className="lehrer">{getTeacherDisplay(b)}</div>
-)}
-            {durationLabel && <div className="dauer-label">{durationLabel}</div>}
-            {b.allowTeacherConflict && (
-              <div className="conflict-ok-label">LP-Konflikt erlaubt</div>
-            )}
-            {teacherOverlap && <div className="conflict-badge">!</div>}
-          </div>
+            const otherGroupKey = [
+              other.tag,
+              other.lektion,
+              other.dauer || 1,
+              String(other.fach || "").trim(),
+              String(other.fachZusatz || "").trim(),
+              otherClassDisplay,
+            ].join("|");
+
+            return otherGroupKey === groupKey;
+          }) === index
         );
-      });
-    };
+      })
+    : blocksStartingHereRaw;
+
+  const isSingleBlock = blocksStartingHere.length === 1;
+
+  return blocksStartingHere.map((b) => {
+    const slot = b.parallelSlot ?? 0;
+    const dauer = b.dauer || 1;
+    const teacherOverlap = hasTeacherOverlap(b);
+    const durationLabel = getDurationLabel(dauer);
+
+    const classDisplay = isTeacherSchedule
+      ? getClassDisplayForTeacherSchedule(b, title)
+      : b.klasse;
+
+    const isCombinedTeacherBlock =
+      isTeacherSchedule && classDisplay !== b.klasse;
+
+    return (
+      <div
+        key={`${b.id}-${classDisplay}`}
+        className={`block scheduled-block read-only-block ${
+          teacherOverlap ? "teacher-overlap" : ""
+        } ${isCombinedTeacherBlock ? "combined-teacher-block" : ""}`}
+        style={{
+          backgroundColor: getColor(b),
+          left:
+            isTeacherSchedule || isSingleBlock
+              ? "0%"
+              : slot === 0
+              ? "0%"
+              : "50%",
+          width: isTeacherSchedule || isSingleBlock ? "100%" : "50%",
+          height: `calc(${dauer} * var(--cell-height) + ${
+            dauer - 1
+          } * var(--grid-gap))`,
+          zIndex: teacherOverlap ? 20 : 10,
+          cursor: "default",
+        }}
+        title={`${getSubjectDisplay(b)} – ${classDisplay} – ${getTeacherDisplay(
+          b
+        )}`}
+      >
+        <div className="fach">
+          {b.fach}
+          {b.fachZusatz && (
+            <span className="fach-zusatz">
+              ({b.fachZusatz.toLowerCase()})
+            </span>
+          )}
+        </div>
+
+        <div className="klasse">{classDisplay}</div>
+
+        {!isTeacherSchedule && (
+          <div className="lehrer">{getTeacherDisplay(b)}</div>
+        )}
+
+        {durationLabel && <div className="dauer-label">{durationLabel}</div>}
+
+        {b.allowTeacherConflict && (
+          <div className="conflict-ok-label">LP-Konflikt erlaubt</div>
+        )}
+
+        {teacherOverlap && <div className="conflict-badge">!</div>}
+      </div>
+    );
+  });
+};
 
     return (
       <div className="single-schedule-print-block" key={title}>
