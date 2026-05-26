@@ -1,698 +1,1731 @@
-:root {
-  --cell-width: 100px;
-  --cell-height: 60px;
-  --grid-gap: 4px;
-  --font-scale: 1;
-  --time-col-width: 120px;
-}
-
-body {
-  font-family: sans-serif;
-  margin: 0;
-  padding: 0;
-  background: #f7f7f7;
-}
-
-.App {
-  padding: 20px;
-  box-sizing: border-box;
-}
-
-h1 {
-  margin-top: 0;
-}
-
-h2 {
-  margin-bottom: 10px;
-}
-
-h3 {
-  margin-top: 0;
-  margin-bottom: 8px;
-  font-size: 1rem;
-}
-
-.toolbar {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-button {
-  padding: 8px 12px;
-  cursor: pointer;
-  border: 1px solid #bbb;
-  background: #f7f7f7;
-  border-radius: 6px;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-button:hover {
-  background: #ececec;
-}
-
-input,
-select {
-  padding: 9px 10px;
-  border: 1px solid #c6c6c6;
-  border-radius: 8px;
-  font: inherit;
-  box-sizing: border-box;
-  width: 100%;
-  background: white;
-}
-
-.zoom-info {
-  font-size: 0.9rem;
-  color: #444;
-}
-
-.plan-wrapper {
-  overflow: auto;
-  border: 1px solid #ddd;
-  padding: 8px;
-  background: white;
-  border-radius: 10px;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(16, var(--cell-width));
-  grid-auto-rows: var(--cell-height);
-  gap: var(--grid-gap);
-  margin-top: 10px;
-  width: max-content;
-}
-
-.day-header,
-.class-header,
-.time {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border: 1px solid #ccc;
-  background: #f5f5f5;
-  font-size: calc(0.75rem * var(--font-scale));
-  box-sizing: border-box;
-  text-align: center;
-  padding: 2px;
-  border-radius: 4px;
-}
-
-.cell {
-  border: 1px solid #ccc;
-  position: relative;
-  overflow: visible;
-  box-sizing: border-box;
-  background: white;
-}
-
-.block {
-  color: white;
-  font-size: calc(0.75rem * var(--font-scale));
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  cursor: grab;
-  text-align: center;
-  box-sizing: border-box;
-  padding: 4px;
-  user-select: none;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
-}
-
-.scheduled-block {
-  position: absolute;
-  top: 0;
-  border-radius: 0;
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  overflow: hidden;
-}
-
-.palette-section {
-  margin-top: 30px;
-}
-
-.palette-big {
-  min-height: 140px;
-  border: 2px dashed #aaa;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 10px;
-  box-sizing: border-box;
-  background: #fafafa;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
-  border-radius: 10px;
-}
-
-.palette-drop-active {
-  background: #eef7ff;
-  border-color: #4a90e2;
-}
-
-.palette-hint {
-  margin-top: 8px;
-  font-size: 0.9rem;
-  color: #555;
-}
-
-.palette-block {
-  width: var(--cell-width);
-  height: var(--cell-height);
-  border-radius: 6px;
-}
-
-.selected {
-  outline: 3px solid #d50000;
-  outline-offset: -3px;
-}
-
-.teacher-overlap {
-  box-shadow: inset 0 0 0 3px #c62828;
-}
-
-.conflict-badge {
-  position: absolute;
-  top: 3px;
-  right: 4px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: rgba(198, 40, 40, 0.95);
-  color: white;
-  font-weight: bold;
-  font-size: 0.8rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  pointer-events: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-}
-
-.fach {
-  font-weight: bold;
-  font-size: calc(0.8rem * var(--font-scale));
-  line-height: 1.1;
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.fach-zusatz {
-  font-weight: 600;
-  font-size: calc(0.62rem * var(--font-scale));
-  opacity: 0.95;
-  text-transform: lowercase;
-}
-
-.klasse {
-  font-size: calc(0.68rem * var(--font-scale));
-  line-height: 1.1;
-}
-
-.lehrer {
-  font-size: calc(0.65rem * var(--font-scale));
-  line-height: 1.1;
-}
-
-.dauer-label {
-  margin-top: 2px;
-  font-size: calc(0.58rem * var(--font-scale));
-  opacity: 0.95;
-}
-
-.stats-panel {
-  margin-bottom: 18px;
-  border: 1px solid #d6d6d6;
-  border-radius: 10px;
-  padding: 14px;
-  background: #fcfcfc;
-}
-
-.stats-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.stats-header h2 {
-  margin: 0;
-}
-
-.stats-tabs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
-}
-
-.tab-button {
-  background: #f2f2f2;
-}
-
-.tab-button.active {
-  background: #dfefff;
-  border-color: #7aa7e0;
-  font-weight: bold;
-}
-
-.stats-summary {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
-}
-
-.stats-card {
-  min-width: 160px;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  background: white;
-}
-
-.warning-card {
-  border-color: #e0b2b2;
-  background: #fff8f8;
-}
-
-.stats-number {
-  font-size: 1.5rem;
-  font-weight: bold;
-}
-
-.stats-label {
-  font-size: 0.9rem;
-  color: #555;
-}
-
-.stats-table-wrapper {
-  overflow-x: auto;
-}
-
-.stats-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-}
-
-.stats-table th,
-.stats-table td {
-  border: 1px solid #ddd;
-  padding: 8px 10px;
-  text-align: left;
-}
-
-.stats-table th {
-  background: #f2f2f2;
-}
-
-.conflict-list {
-  margin-top: 10px;
-  padding: 12px;
-  border: 1px solid #e5e5e5;
-  border-radius: 10px;
-  background: white;
-}
-
-.conflict-list ul {
-  margin: 0;
-  padding-left: 18px;
-}
-
-.conflict-list li {
-  margin-bottom: 6px;
-}
-
-.muted-cell {
-  color: #888;
-}
-
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.32);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
-  z-index: 1000;
-}
-
-.modal-card {
-  width: 100%;
-  max-width: 520px;
-  background: white;
-  border-radius: 14px;
-  padding: 18px;
-  box-sizing: border-box;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.modal-header h2 {
-  margin: 0;
-}
-
-.modal-close-button {
-  min-width: 40px;
-  font-size: 1.1rem;
-  line-height: 1;
-}
-
-.block-form {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-field span {
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: #333;
-}
-
-.form-hint {
-  font-size: 0.88rem;
-  color: #666;
-  background: #f6f6f6;
-  border: 1px solid #e2e2e2;
-  padding: 10px 12px;
-  border-radius: 8px;
-}
-
-.teacher-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.teacher-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.teacher-row input {
-  flex: 1;
-}
-
-.teacher-row-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.checkbox-field {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-}
-
-.checkbox-field input {
-  width: auto;
-  margin-top: 3px;
-}
-
-.checkbox-field small {
-  display: block;
-  color: #666;
-  font-weight: normal;
-  margin-top: 3px;
-}
-
-.conflict-ok-label {
-  font-size: calc(0.52rem * var(--font-scale));
-  opacity: 0.9;
-}
-
-.small-button {
-  min-width: 38px;
-  width: 38px;
-  height: 38px;
-  padding: 0;
-  font-size: 1.1rem;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 4px;
-}
-
-.summary-page {
-  padding: 16px;
-}
-
-.summary-subtitle {
-  margin-bottom: 12px;
-  color: #666;
-  font-size: 0.95rem;
-}
-
-.single-schedule-print-block {
-  margin-bottom: 40px;
-  page-break-after: always;
-  break-after: page;
-  background: white;
-}
-
-.single-schedule-print-block:last-child {
-  page-break-after: auto;
-  break-after: auto;
-}
-
-.single-plan-wrapper {
-  overflow-x: auto;
-  margin-top: 12px;
-}
-
-.single-grid {
-  display: grid;
-  grid-template-columns: var(--time-col-width) repeat(5, var(--cell-width));
-  gap: var(--grid-gap);
-  align-items: stretch;
-}
-
-.read-only-cell {
-  position: relative;
-  min-height: var(--cell-height);
-}
-
-.read-only-block {
-  position: absolute;
-}
-
-.header-cell {
-  font-weight: bold;
-}
-
-.summary-view .day-header,
-.summary-view .class-header,
-.summary-view .time,
-.summary-view .cell {
-  box-sizing: border-box;
-}
-
-@page {
-  size: A4 portrait;
-  margin: 10mm;
-}
-
-@media print {
-  body {
-    margin: 0;
-    padding: 0;
-    background: white;
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
+import "./App.css";
+
+const days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"];
+const classes = ["7. Klasse", "8. Klasse", "9. Klasse"];
+const times = [
+  "7:30 - 8:15",
+  "8:20 - 9:05",
+  "9:10 - 9:55",
+  "10:15 - 11:00",
+  "11:05 - 11:50",
+  "11:55 - 12:40",
+  "12:45 - 13:30",
+  "13:40 - 14:25",
+  "14:30 - 15:15",
+  "15:30 - 16:15",
+  "16:20 - 17:05",
+];
+
+const subjectAddons = ["TT", "S", "R", "Sek/Real", "G1", "G2", "G3"];
+
+const emptyFormData = {
+  fach: "",
+  fachZusatz: "",
+  klasse: classes[0],
+  lehrpersonen: [""],
+  dauer: 1,
+  allowTeacherConflict: false,
+};
+
+const normalizeDuration = (value) => {
+  const number = Number(value);
+  return number === 2 || number === 3 ? number : 1;
+};
+
+const getDurationLabel = (dauer) => {
+  if (dauer === 2) return "Doppelstunde";
+  if (dauer === 3) return "Triple-Lektion";
+  return "";
+};
+
+const getViewFromHash = () => {
+  const hash = window.location.hash.replace("#", "");
+
+  if (hash === "/klassen") return "klassen";
+  if (hash === "/lehrpersonen") return "lehrpersonen";
+  return "main";
+};
+
+function App() {
+  const [blockData, setBlockData] = useState([]);
+  const [paletteBlocks, setPaletteBlocks] = useState([]);
+  const [selectedBlock, setSelectedBlock] = useState(null);
+  const [colorMode, setColorMode] = useState("fach");
+  const [clipboard, setClipboard] = useState(null);
+  const [zoom, setZoom] = useState(1);
+  const [compactView, setCompactView] = useState(false);
+  const [isPaletteDragOver, setIsPaletteDragOver] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [statsView, setStatsView] = useState("overview");
+  const [currentView, setCurrentView] = useState(getViewFromHash());
+
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [formMode, setFormMode] = useState("create");
+  const [editingBlockId, setEditingBlockId] = useState(null);
+  const [editingIsPalette, setEditingIsPalette] = useState(true);
+  const [formData, setFormData] = useState(emptyFormData);
+
+  const fileInputRef = useRef(null);
+
+  const normalizeTeacherList = useCallback((value) => {
+    if (Array.isArray(value)) {
+      const cleaned = value
+        .map((entry) => String(entry || "").trim())
+        .filter(Boolean);
+      return cleaned.length > 0 ? cleaned : [""];
+    }
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return trimmed ? [trimmed] : [""];
+    }
+
+    return [""];
+  }, []);
+
+  const normalizeSubjectAddon = useCallback((value) => {
+    const raw = String(value || "").trim();
+
+    const match = subjectAddons.find(
+      (addon) => addon.toLowerCase() === raw.toLowerCase()
+    );
+
+    return match || "";
+  }, []);
+
+  const getTeacherListFromBlock = useCallback((block) => {
+    if (Array.isArray(block.lehrpersonen)) {
+      return block.lehrpersonen
+        .map((entry) => String(entry || "").trim())
+        .filter(Boolean);
+    }
+
+    if (typeof block.lehrer === "string" && block.lehrer.trim()) {
+      return [block.lehrer.trim()];
+    }
+
+    return [];
+  }, []);
+
+  const getTeacherDisplay = useCallback(
+    (block) => {
+      const list = getTeacherListFromBlock(block);
+      return list.length > 0 ? list.join(", ") : "";
+    },
+    [getTeacherListFromBlock]
+  );
+
+  const isTeacherConflictAllowed = useCallback((block) => {
+    return block?.allowTeacherConflict === true;
+  }, []);
+
+  const isTeacherOverlapRelevant = useCallback(
+    (block, other) => {
+      if (isTeacherConflictAllowed(block) || isTeacherConflictAllowed(other)) {
+        return false;
+      }
+
+      return true;
+    },
+    [isTeacherConflictAllowed]
+  );
+
+  const getSubjectDisplay = useCallback((block) => {
+    const fach = String(block?.fach || "").trim();
+    const fachZusatz = String(block?.fachZusatz || "").trim();
+
+    if (!fach) return "";
+    if (!fachZusatz) return fach;
+
+    return `${fach} (${fachZusatz.toLowerCase()})`;
+  }, []);
+
+  const normalizeBlock = useCallback(
+    (b) => {
+      const klasse = classes.includes(b.klasse) ? b.klasse : classes[0];
+      const lehrpersonen = normalizeTeacherList(
+        Array.isArray(b.lehrpersonen) ? b.lehrpersonen : b.lehrer
+      );
+
+      return {
+        ...b,
+        id:
+          b.id != null
+            ? String(b.id)
+            : typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        dauer: normalizeDuration(b.dauer),
+        parallelSlot:
+          b.parallelSlot === 0 || b.parallelSlot === 1 ? b.parallelSlot : null,
+        tag: b.tag ?? null,
+        lektion: Number.isInteger(b.lektion) ? b.lektion : null,
+        fach: b.fach ?? "",
+        fachZusatz: normalizeSubjectAddon(b.fachZusatz),
+        klasse,
+        lehrpersonen,
+        allowTeacherConflict: b.allowTeacherConflict === true,
+      };
+    },
+    [normalizeTeacherList, normalizeSubjectAddon]
+  );
+
+  const createId = () => {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  };
+
+  const navigateTo = (view) => {
+    if (view === "main") {
+      window.location.hash = "/";
+      return;
+    }
+
+    if (view === "klassen") {
+      window.location.hash = "/klassen";
+      return;
+    }
+
+    if (view === "lehrpersonen") {
+      window.location.hash = "/lehrpersonen";
+    }
+  };
+
+  const exportData = useCallback(() => {
+    const data = JSON.stringify({ blockData, paletteBlocks }, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const fileName =
+      prompt("Dateiname fÃ¼r den Stundenplan:", "stundenplan.json") ||
+      "stundenplan.json";
+
+    const safeFileName = fileName.endsWith(".json")
+      ? fileName
+      : `${fileName}.json`;
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = safeFileName;
+    a.click();
+
+    URL.revokeObjectURL(url);
+  }, [blockData, paletteBlocks]);
+
+  const importData = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result);
+
+        setBlockData((data.blockData || []).map(normalizeBlock));
+        setPaletteBlocks(
+          (data.paletteBlocks || []).map((b) => ({
+            ...normalizeBlock(b),
+            tag: null,
+            lektion: null,
+            parallelSlot: null,
+          }))
+        );
+        setSelectedBlock(null);
+      } catch (error) {
+        alert("Die Datei konnte nicht importiert werden.");
+      }
+    };
+
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("stundenplan-data");
+      if (!raw) return;
+
+      const data = JSON.parse(raw);
+      setBlockData((data.blockData || []).map(normalizeBlock));
+      setPaletteBlocks((data.paletteBlocks || []).map(normalizeBlock));
+    } catch (error) {
+      console.error("Lokale Daten konnten nicht geladen werden.", error);
+    }
+  }, [normalizeBlock]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "stundenplan-data",
+        JSON.stringify({ blockData, paletteBlocks })
+      );
+    } catch (error) {
+      console.error("Lokale Daten konnten nicht gespeichert werden.", error);
+    }
+  }, [blockData, paletteBlocks]);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      setCurrentView(getViewFromHash());
+      setSelectedBlock(null);
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  const getBlocksInCell = useCallback(
+    (day, klasse, lektion, excludeId = null) => {
+      return blockData.filter((b) => {
+        if (b.id === excludeId) return false;
+        if (b.tag !== day || b.klasse !== klasse) return false;
+        if (b.lektion == null) return false;
+
+        const start = b.lektion;
+        const end = start + (b.dauer || 1) - 1;
+        return lektion >= start && lektion <= end;
+      });
+    },
+    [blockData]
+  );
+
+  const getAvailableParallelSlot = useCallback(
+    (day, klasse, startLektion, dauer, excludeId = null) => {
+      for (let slot = 0; slot <= 1; slot++) {
+        let slotFreeEverywhere = true;
+
+        for (let offset = 0; offset < dauer; offset++) {
+          const lektion = startLektion + offset;
+          const blocksInCell = getBlocksInCell(day, klasse, lektion, excludeId);
+
+          const slotOccupied = blocksInCell.some(
+            (b) => (b.parallelSlot ?? 0) === slot
+          );
+
+          if (slotOccupied) {
+            slotFreeEverywhere = false;
+            break;
+          }
+        }
+
+        if (slotFreeEverywhere) return slot;
+      }
+
+      return null;
+    },
+    [getBlocksInCell]
+  );
+
+  const canPlaceBlock = useCallback(
+    ({
+      blockId = null,
+      day,
+      klasse,
+      startLektion,
+      dauer,
+      preferredSlot = null,
+    }) => {
+      if (startLektion < 0 || startLektion + dauer > times.length) {
+        return { possible: false, reason: "out-of-range", slot: null };
+      }
+
+      if (preferredSlot === 0 || preferredSlot === 1) {
+        for (let offset = 0; offset < dauer; offset++) {
+          const lektion = startLektion + offset;
+          const blocksInCell = getBlocksInCell(day, klasse, lektion, blockId);
+
+          const slotOccupied = blocksInCell.some(
+            (b) => (b.parallelSlot ?? 0) === preferredSlot
+          );
+
+          if (slotOccupied) {
+            return { possible: false, reason: "slot-occupied", slot: null };
+          }
+        }
+
+        return { possible: true, reason: null, slot: preferredSlot };
+      }
+
+      const freeSlot = getAvailableParallelSlot(
+        day,
+        klasse,
+        startLektion,
+        dauer,
+        blockId
+      );
+
+      if (freeSlot === null) {
+        return { possible: false, reason: "no-slot", slot: null };
+      }
+
+      return { possible: true, reason: null, slot: freeSlot };
+    },
+    [getBlocksInCell, getAvailableParallelSlot]
+  );
+
+  const allBlocks = useMemo(() => {
+    return [...blockData, ...paletteBlocks];
+  }, [blockData, paletteBlocks]);
+
+  const teachers = useMemo(() => {
+    return [
+      ...new Set(
+        blockData.flatMap((b) => getTeacherListFromBlock(b)).filter(Boolean)
+      ),
+    ].sort((a, b) => a.localeCompare(b, "de"));
+  }, [blockData, getTeacherListFromBlock]);
+
+  const distinctColorMap = useMemo(() => {
+    const sourceValues = allBlocks
+      .map((b) => {
+        if (colorMode === "fach") return b.fach;
+        const teacherList = getTeacherListFromBlock(b);
+        return teacherList.length > 0 ? teacherList.join(", ") : "Unbekannt";
+      })
+      .map((value) => String(value || "Unbekannt").trim())
+      .filter(Boolean);
+
+    const uniqueValues = [...new Set(sourceValues)].sort((a, b) =>
+      a.localeCompare(b, "de")
+    );
+
+    const map = {};
+    const lightnessPattern = [52, 60, 46, 56];
+    const saturationPattern = [72, 68, 78, 64];
+
+    uniqueValues.forEach((value, index) => {
+      const hue = Math.round((index * 137.508) % 360);
+      const lightness = lightnessPattern[index % lightnessPattern.length];
+      const saturation = saturationPattern[index % saturationPattern.length];
+      map[value] = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    });
+
+    if (!map.Unbekannt) {
+      map.Unbekannt = "hsl(0, 0%, 55%)";
+    }
+
+    return map;
+  }, [allBlocks, colorMode, getTeacherListFromBlock]);
+
+  const getColor = useCallback(
+    (block) => {
+      const key =
+        colorMode === "fach"
+          ? String(block.fach || "Unbekannt").trim()
+          : (() => {
+              const teacherList = getTeacherListFromBlock(block);
+              return teacherList.length > 0
+                ? teacherList.join(", ")
+                : "Unbekannt";
+            })();
+
+      return distinctColorMap[key] || distinctColorMap.Unbekannt;
+    },
+    [colorMode, distinctColorMap, getTeacherListFromBlock]
+  );
+
+  const hasTeacherOverlap = useCallback(
+    (block) => {
+      const teacherList = getTeacherListFromBlock(block);
+
+      if (teacherList.length === 0 || block.tag == null || block.lektion == null) {
+        return false;
+      }
+
+      const blockStart = block.lektion;
+      const blockEnd = blockStart + (block.dauer || 1) - 1;
+
+      return blockData.some((other) => {
+        if (other.id === block.id) return false;
+        if (other.tag !== block.tag) return false;
+        if (other.lektion == null) return false;
+        if (!isTeacherOverlapRelevant(block, other)) return false;
+
+        const otherTeachers = getTeacherListFromBlock(other);
+        if (otherTeachers.length === 0) return false;
+
+        const sharesTeacher = teacherList.some((t) => otherTeachers.includes(t));
+        if (!sharesTeacher) return false;
+
+        const otherStart = other.lektion;
+        const otherEnd = otherStart + (other.dauer || 1) - 1;
+
+        return !(blockEnd < otherStart || blockStart > otherEnd);
+      });
+    },
+    [blockData, getTeacherListFromBlock, isTeacherOverlapRelevant]
+  );
+
+  const teacherConflicts = useMemo(() => {
+    const conflicts = [];
+    const seen = new Set();
+
+    blockData.forEach((block) => {
+      const teacherList = getTeacherListFromBlock(block);
+
+      if (teacherList.length === 0 || block.tag == null || block.lektion == null) {
+        return;
+      }
+
+      const blockStart = block.lektion;
+      const blockEnd = blockStart + (block.dauer || 1) - 1;
+
+      teacherList.forEach((teacher) => {
+        const overlappingBlocks = blockData.filter((other) => {
+          if (other.id === block.id) return false;
+          if (other.tag !== block.tag) return false;
+          if (other.lektion == null) return false;
+          if (!isTeacherOverlapRelevant(block, other)) return false;
+
+          const otherTeachers = getTeacherListFromBlock(other);
+          if (!otherTeachers.includes(teacher)) return false;
+
+          const otherStart = other.lektion;
+          const otherEnd = otherStart + (other.dauer || 1) - 1;
+
+          return !(blockEnd < otherStart || blockStart > otherEnd);
+        });
+
+        if (overlappingBlocks.length > 0) {
+          const visualKey = `${teacher}-${block.tag}-${block.lektion}-${block.id}`;
+
+          if (!seen.has(visualKey)) {
+            seen.add(visualKey);
+            conflicts.push({
+              key: visualKey,
+              lehrer: teacher,
+              tag: block.tag,
+              zeit: times[block.lektion] || `Lektion ${block.lektion + 1}`,
+              klasse: block.klasse || "Ohne Klasse",
+              fach: getSubjectDisplay(block) || "Ohne Fach",
+            });
+          }
+        }
+      });
+    });
+
+    return conflicts.sort((a, b) => {
+      const dayCompare = days.indexOf(a.tag) - days.indexOf(b.tag);
+      if (dayCompare !== 0) return dayCompare;
+
+      const timeCompare =
+        times.indexOf(a.zeit) >= 0 && times.indexOf(b.zeit) >= 0
+          ? times.indexOf(a.zeit) - times.indexOf(b.zeit)
+          : a.zeit.localeCompare(b.zeit, "de");
+
+      if (timeCompare !== 0) return timeCompare;
+
+      return a.lehrer.localeCompare(b.lehrer, "de");
+    });
+  }, [
+    blockData,
+    getTeacherListFromBlock,
+    getSubjectDisplay,
+    isTeacherOverlapRelevant,
+  ]);
+
+  const openCreateModal = () => {
+    setFormMode("create");
+    setEditingBlockId(null);
+    setEditingIsPalette(true);
+    setFormData({
+      fach: "",
+      fachZusatz: "",
+      klasse: classes[0],
+      lehrpersonen: [""],
+      dauer: 1,
+      allowTeacherConflict: false,
+    });
+    setShowFormModal(true);
+  };
+
+  const openEditModal = (block, isPalette) => {
+    const existingTeachers = getTeacherListFromBlock(block);
+
+    setFormMode("edit");
+    setEditingBlockId(block.id);
+    setEditingIsPalette(isPalette);
+    setFormData({
+      fach: block.fach || "",
+      fachZusatz: block.fachZusatz || "",
+      klasse: classes.includes(block.klasse) ? block.klasse : classes[0],
+      lehrpersonen: existingTeachers.length > 0 ? existingTeachers : [""],
+      dauer: normalizeDuration(block.dauer),
+      allowTeacherConflict: block.allowTeacherConflict === true,
+    });
+    setShowFormModal(true);
+  };
+
+  const closeFormModal = () => {
+    setShowFormModal(false);
+    setEditingBlockId(null);
+    setEditingIsPalette(true);
+    setFormData(emptyFormData);
+  };
+
+  const handleFormChange = (field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: field === "dauer" ? Number(value) : value,
+    }));
+  };
+
+  const handleTeacherChange = (index, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      lehrpersonen: prev.lehrpersonen.map((entry, i) =>
+        i === index ? value : entry
+      ),
+    }));
+  };
+
+  const addTeacherField = () => {
+    setFormData((prev) => ({
+      ...prev,
+      lehrpersonen: [...prev.lehrpersonen, ""],
+    }));
+  };
+
+  const removeTeacherField = (index) => {
+    setFormData((prev) => {
+      const next = prev.lehrpersonen.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        lehrpersonen: next.length > 0 ? next : [""],
+      };
+    });
+  };
+
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+
+    const fach = formData.fach.trim();
+    const fachZusatz = normalizeSubjectAddon(formData.fachZusatz);
+    const klasse = formData.klasse;
+    const lehrpersonen = formData.lehrpersonen
+      .map((entry) => String(entry || "").trim())
+      .filter(Boolean);
+    const dauer = normalizeDuration(formData.dauer);
+    const allowTeacherConflict = formData.allowTeacherConflict === true;
+
+    if (!fach) {
+      alert("Bitte ein Fach eingeben.");
+      return;
+    }
+
+    if (!klasse) {
+      alert("Bitte eine Klasse auswÃ¤hlen.");
+      return;
+    }
+
+    if (lehrpersonen.length === 0) {
+      alert("Bitte mindestens eine Lehrperson eingeben.");
+      return;
+    }
+
+    if (formMode === "create") {
+      setPaletteBlocks((prev) => [
+        ...prev,
+        {
+          id: createId(),
+          fach,
+          fachZusatz,
+          klasse,
+          lehrpersonen,
+          dauer,
+          allowTeacherConflict,
+          tag: null,
+          lektion: null,
+          parallelSlot: null,
+        },
+      ]);
+      closeFormModal();
+      return;
+    }
+
+    const scheduledBlock = blockData.find((b) => b.id === editingBlockId);
+    const paletteBlock = paletteBlocks.find((b) => b.id === editingBlockId);
+    const currentBlock = scheduledBlock || paletteBlock;
+
+    if (!currentBlock) {
+      closeFormModal();
+      return;
+    }
+
+    if (
+      !editingIsPalette &&
+      currentBlock.tag !== null &&
+      currentBlock.lektion !== null
+    ) {
+      const slotStillFits = canPlaceBlock({
+        blockId: currentBlock.id,
+        day: currentBlock.tag,
+        klasse,
+        startLektion: currentBlock.lektion,
+        dauer,
+        preferredSlot:
+          klasse === currentBlock.klasse ? currentBlock.parallelSlot ?? 0 : null,
+      });
+
+      if (!slotStillFits.possible) {
+        alert(
+          "Die neue Klasse oder Dauer passt am aktuellen Ort nicht. In der Ziel-Klassenspalte ist zu dieser Zeit kein passender Parallel-Slot frei."
+        );
+        return;
+      }
+
+      setBlockData((prev) =>
+        prev.map((x) =>
+          x.id === currentBlock.id
+            ? {
+                ...x,
+                fach,
+                fachZusatz,
+                klasse,
+                lehrpersonen,
+                dauer,
+                allowTeacherConflict,
+                parallelSlot: slotStillFits.slot,
+              }
+            : x
+        )
+      );
+      closeFormModal();
+      return;
+    }
+
+    if (editingIsPalette) {
+      setPaletteBlocks((prev) =>
+        prev.map((x) =>
+          x.id === currentBlock.id
+            ? {
+                ...x,
+                fach,
+                fachZusatz,
+                klasse,
+                lehrpersonen,
+                dauer,
+                allowTeacherConflict,
+              }
+            : x
+        )
+      );
+    } else {
+      setBlockData((prev) =>
+        prev.map((x) =>
+          x.id === currentBlock.id
+            ? {
+                ...x,
+                fach,
+                fachZusatz,
+                klasse,
+                lehrpersonen,
+                dauer,
+                allowTeacherConflict,
+              }
+            : x
+        )
+      );
+    }
+
+    closeFormModal();
+  };
+
+  const handleDropToCell = (e, day, klasse, rowIndex) => {
+    e.preventDefault();
+
+    const id = e.dataTransfer.getData("id");
+    if (!id) return;
+
+    const fromPalette = paletteBlocks.find((b) => b.id === id);
+    const movingBlock = blockData.find((b) => b.id === id);
+    const block = fromPalette || movingBlock;
+
+    if (!block) return;
+
+    if (block.klasse !== klasse) {
+      alert(
+        `Dieser Block gehÃ¶rt zur ${block.klasse} und kann nur in dieser Klassen-Spalte gesetzt werden.`
+      );
+      return;
+    }
+
+    const dauer = block.dauer || 1;
+
+    const placement = canPlaceBlock({
+      blockId: movingBlock ? id : null,
+      day,
+      klasse,
+      startLektion: rowIndex,
+      dauer,
+    });
+
+    if (!placement.possible) {
+      if (placement.reason === "out-of-range") {
+        alert("Der Block passt hier nicht mehr nach unten.");
+      } else {
+        alert(
+          "Hier ist kein passender Parallel-Slot frei. FÃ¼r mehrstÃ¼ndige BlÃ¶cke muss derselbe Slot in allen benÃ¶tigten Lektionen frei sein."
+        );
+      }
+      return;
+    }
+
+    if (fromPalette) {
+      setPaletteBlocks((prev) => prev.filter((b) => b.id !== id));
+      setBlockData((prev) => [
+        ...prev,
+        {
+          ...block,
+          tag: day,
+          klasse,
+          lektion: rowIndex,
+          parallelSlot: placement.slot,
+        },
+      ]);
+    } else {
+      setBlockData((prev) =>
+        prev.map((b) =>
+          b.id === id
+            ? {
+                ...b,
+                tag: day,
+                klasse,
+                lektion: rowIndex,
+                parallelSlot: placement.slot,
+              }
+            : b
+        )
+      );
+    }
+  };
+
+  const handleDropToPalette = (e) => {
+    e.preventDefault();
+    setIsPaletteDragOver(false);
+
+    const id = e.dataTransfer.getData("id");
+    if (!id) return;
+
+    const scheduledBlock = blockData.find((b) => b.id === id);
+    if (!scheduledBlock) return;
+
+    const paletteVersion = {
+      ...scheduledBlock,
+      tag: null,
+      lektion: null,
+      parallelSlot: null,
+    };
+
+    setBlockData((prev) => prev.filter((b) => b.id !== id));
+    setPaletteBlocks((prev) => {
+      const alreadyExists = prev.some((b) => b.id === id);
+      return alreadyExists ? prev : [...prev, paletteVersion];
+    });
+    setSelectedBlock(id);
+  };
+
+  const statsByClassAndSubject = useMemo(() => {
+    const map = {};
+
+    for (const klasse of classes) {
+      map[klasse] = {};
+    }
+
+    blockData.forEach((block) => {
+      const klasse = block.klasse || "Ohne Klasse";
+      const fach = getSubjectDisplay(block) || "Ohne Fach";
+      const count = block.dauer || 1;
+
+      if (!map[klasse]) {
+        map[klasse] = {};
+      }
+
+      if (!map[klasse][fach]) {
+        map[klasse][fach] = 0;
+      }
+
+      map[klasse][fach] += count;
+    });
+
+    return map;
+  }, [blockData, getSubjectDisplay]);
+
+  const statsByTeacher = useMemo(() => {
+    const map = {};
+
+    blockData.forEach((block) => {
+      const teacherList = getTeacherListFromBlock(block);
+      const count = block.dauer || 1;
+
+      if (teacherList.length === 0) {
+        if (!map["Ohne Lehrperson"]) {
+          map["Ohne Lehrperson"] = 0;
+        }
+        map["Ohne Lehrperson"] += count;
+        return;
+      }
+
+      teacherList.forEach((teacher) => {
+        if (!map[teacher]) {
+          map[teacher] = 0;
+        }
+        map[teacher] += count;
+      });
+    });
+
+    return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0], "de"));
+  }, [blockData, getTeacherListFromBlock]);
+
+  const totalLessons = useMemo(() => {
+    return blockData.reduce((sum, block) => sum + (block.dauer || 1), 0);
+  }, [blockData]);
+
+  const totalScheduledBlocks = blockData.length;
+
+  const renderBlocksInCell = (day, klasse, rowIndex) => {
+    const blocksStartingHere = blockData
+      .filter(
+        (b) => b.tag === day && b.klasse === klasse && b.lektion === rowIndex
+      )
+      .sort((a, b) => (a.parallelSlot ?? 0) - (b.parallelSlot ?? 0));
+
+    const isSingleBlock = blocksStartingHere.length === 1;
+
+    return blocksStartingHere.map((b) => {
+      const slot = b.parallelSlot ?? 0;
+      const dauer = b.dauer || 1;
+      const teacherOverlap = hasTeacherOverlap(b);
+      const durationLabel = getDurationLabel(dauer);
+
+      return (
+        <div
+          key={b.id}
+          className={`block scheduled-block ${
+            selectedBlock === b.id ? "selected" : ""
+          } ${teacherOverlap ? "teacher-overlap" : ""}`}
+          style={{
+            backgroundColor: getColor(b),
+            left: isSingleBlock ? "0%" : slot === 0 ? "0%" : "50%",
+            width: isSingleBlock ? "100%" : "50%",
+            height: `calc(${dauer} * var(--cell-height) + ${
+              dauer - 1
+            } * var(--grid-gap))`,
+            zIndex: teacherOverlap ? 20 : 10,
+          }}
+          title={
+            b.allowTeacherConflict
+              ? `${getSubjectDisplay(
+                  b
+                )} â€“ ${b.klasse} â€“ ${getTeacherDisplay(
+                  b
+                )} â€“ LP-Ãœberschneidung erlaubt`
+              : teacherOverlap
+              ? `Achtung: ${getTeacherDisplay(
+                  b
+                )} ist am ${b.tag} parallel eingeplant.`
+              : `${getSubjectDisplay(b)} â€“ ${b.klasse} â€“ ${getTeacherDisplay(b)}`
+          }
+          draggable
+          onClick={() => setSelectedBlock(b.id)}
+          onDoubleClick={() => openEditModal(b, false)}
+          onDragStart={(e) => e.dataTransfer.setData("id", b.id)}
+        >
+          <div className="fach">
+            {b.fach}
+            {b.fachZusatz && (
+              <span className="fach-zusatz">({b.fachZusatz.toLowerCase()})</span>
+            )}
+          </div>
+          <div className="klasse">{b.klasse}</div>
+          <div className="lehrer">{getTeacherDisplay(b)}</div>
+          {durationLabel && <div className="dauer-label">{durationLabel}</div>}
+          {b.allowTeacherConflict && (
+            <div className="conflict-ok-label">LP-Konflikt erlaubt</div>
+          )}
+          {teacherOverlap && <div className="conflict-badge">!</div>}
+        </div>
+      );
+    });
+  };
+const getClassDisplayForTeacherSchedule = useCallback(
+  (block, currentTeacher) => {
+    if (!block?.allowTeacherConflict || !currentTeacher) {
+      return block.klasse;
+    }
+
+    const matchingBlocks = blockData.filter((other) => {
+      if (!other.allowTeacherConflict) return false;
+      if (other.tag !== block.tag) return false;
+      if (other.lektion !== block.lektion) return false;
+      if ((other.dauer || 1) !== (block.dauer || 1)) return false;
+      if (String(other.fach || "").trim() !== String(block.fach || "").trim()) return false;
+
+      return getTeacherListFromBlock(other).includes(currentTeacher);
+    });
+
+    const numbers = [...new Set(
+      matchingBlocks
+        .map((b) => Number(String(b.klasse || "").match(/\d+/)?.[0]))
+        .filter(Number.isFinite)
+    )].sort((a, b) => a - b);
+
+    if (numbers.length <= 1) return block.klasse;
+
+    return `${numbers[0]}. - ${numbers[numbers.length - 1]}. Klasse`;
+  },
+  [blockData, getTeacherListFromBlock]
+);
+
+  const renderReadOnlySchedule = (title, blocks, subtitle = null, options = {}) => {
+  const isTeacherSchedule = options.type === "teacher";
+    const renderReadOnlyBlocksInCell = (day, rowIndex) => {
+      const blocksStartingHere = blocks
+        .filter((b) => b.tag === day && b.lektion === rowIndex)
+        .sort((a, b) => (a.parallelSlot ?? 0) - (b.parallelSlot ?? 0));
+
+      const isSingleBlock = blocksStartingHere.length === 1;
+
+      return blocksStartingHere.map((b) => {
+        const slot = b.parallelSlot ?? 0;
+        const dauer = b.dauer || 1;
+        const teacherOverlap = hasTeacherOverlap(b);
+        const durationLabel = getDurationLabel(dauer);
+
+        return (
+          <div
+            key={b.id}
+            className={`block scheduled-block read-only-block ${
+              teacherOverlap ? "teacher-overlap" : ""
+            }`}
+            style={{
+              backgroundColor: getColor(b),
+              left: isSingleBlock ? "0%" : slot === 0 ? "0%" : "50%",
+              width: isSingleBlock ? "100%" : "50%",
+              height: `calc(${dauer} * var(--cell-height) + ${
+                dauer - 1
+              } * var(--grid-gap))`,
+              zIndex: teacherOverlap ? 20 : 10,
+              cursor: "default",
+            }}
+            title={`${getSubjectDisplay(b)} â€“ ${b.klasse} â€“ ${getTeacherDisplay(b)}`}
+          >
+            <div className="fach">
+              {b.fach}
+              {b.fachZusatz && (
+                <span className="fach-zusatz">({b.fachZusatz.toLowerCase()})</span>
+              )}
+            </div>
+            <div className="klasse">
+  {isTeacherSchedule
+    ? getClassDisplayForTeacherSchedule(b, title)
+    : b.klasse}
+</div>
+
+{!isTeacherSchedule && (
+  <div className="lehrer">{getTeacherDisplay(b)}</div>
+)}
+            {durationLabel && <div className="dauer-label">{durationLabel}</div>}
+            {b.allowTeacherConflict && (
+              <div className="conflict-ok-label">LP-Konflikt erlaubt</div>
+            )}
+            {teacherOverlap && <div className="conflict-badge">!</div>}
+          </div>
+        );
+      });
+    };
+
+    return (
+      <div className="single-schedule-print-block" key={title}>
+        <h2>{title}</h2>
+        {subtitle && <div className="summary-subtitle">{subtitle}</div>}
+
+        <div className="single-plan-wrapper">
+          <div className="single-grid">
+            <div className="time header-cell">Zeit</div>
+
+            {days.map((d) => (
+              <div key={d} className="day-header">
+                {d}
+              </div>
+            ))}
+
+            {times.map((t, rowIndex) => (
+              <React.Fragment key={`${title}-${rowIndex}`}>
+                <div className="time">{t}</div>
+
+                {days.map((d) => (
+                  <div
+                    key={`${title}-${d}-${rowIndex}`}
+                    className="cell read-only-cell"
+                    style={{
+                      backgroundColor:
+                        rowIndex === 5 || rowIndex === 6 ? "#eee" : "",
+                    }}
+                  >
+                    {renderReadOnlyBlocksInCell(d, rowIndex)}
+                  </div>
+                ))}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const zoomIn = () => setZoom((prev) => Math.min(prev + 0.1, 1.8));
+  const zoomOut = () => setZoom((prev) => Math.max(prev - 0.1, 0.5));
+  const zoomReset = () => setZoom(1);
+
+  const setOverview = () => {
+    setCompactView(true);
+    setZoom(0.7);
+  };
+
+  const setNormalView = () => {
+    setCompactView(false);
+    setZoom(1);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const isMac = navigator.platform.includes("Mac");
+      const ctrl = isMac ? e.metaKey : e.ctrlKey;
+      const tagName = document.activeElement?.tagName?.toLowerCase();
+      const isTyping =
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select" ||
+        document.activeElement?.isContentEditable;
+
+      if (ctrl && e.key === "s") {
+        e.preventDefault();
+        exportData();
+      }
+
+      if (ctrl && e.key === "o") {
+        e.preventDefault();
+        fileInputRef.current?.click();
+      }
+
+      if (ctrl && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        window.print();
+      }
+
+      if (
+        !isTyping &&
+        (e.key === "Delete" || e.key === "Backspace") &&
+        selectedBlock &&
+        currentView === "main"
+      ) {
+        setBlockData((prev) => prev.filter((b) => b.id !== selectedBlock));
+        setPaletteBlocks((prev) => prev.filter((b) => b.id !== selectedBlock));
+        setSelectedBlock(null);
+      }
+
+      if (ctrl && e.key === "c" && selectedBlock && currentView === "main") {
+        const b =
+          blockData.find((x) => x.id === selectedBlock) ||
+          paletteBlocks.find((x) => x.id === selectedBlock);
+
+        if (b) setClipboard(b);
+      }
+
+      if (ctrl && e.key === "v" && clipboard && currentView === "main") {
+        setPaletteBlocks((prev) => [
+          ...prev,
+          {
+            ...clipboard,
+            id: createId(),
+            tag: null,
+            lektion: null,
+            parallelSlot: null,
+          },
+        ]);
+      }
+
+      if (ctrl && (e.key === "+" || e.key === "=")) {
+        e.preventDefault();
+        setZoom((prev) => Math.min(prev + 0.1, 1.8));
+      }
+
+      if (ctrl && e.key === "-") {
+        e.preventDefault();
+        setZoom((prev) => Math.max(prev - 0.1, 0.5));
+      }
+
+      if (ctrl && e.key === "0") {
+        e.preventDefault();
+        setZoom(1);
+      }
+
+      if (ctrl && e.key.toLowerCase() === "i" && currentView === "main") {
+        e.preventDefault();
+        setShowStats((prev) => !prev);
+      }
+
+      if (e.key === "Escape" && showFormModal) {
+        closeFormModal();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    selectedBlock,
+    clipboard,
+    blockData,
+    paletteBlocks,
+    exportData,
+    showFormModal,
+    currentView,
+  ]);
+
+  const cellWidth = compactView ? 78 * zoom : 100 * zoom;
+  const cellHeight = compactView ? 46 * zoom : 60 * zoom;
+  const fontScale = compactView ? 0.9 : 1;
+
+  const sharedStyleVars = {
+    "--cell-width": `${cellWidth}px`,
+    "--cell-height": `${cellHeight}px`,
+    "--grid-gap": compactView ? "3px" : "4px",
+    "--font-scale": fontScale,
+    "--time-col-width": "120px",
+  };
+
+  const renderClassSchedulesPage = () => {
+    return (
+      <div className="summary-page">
+        <div className="toolbar no-print">
+          <button onClick={() => navigateTo("main")}>â† Zur Hauptseite</button>
+          <button onClick={() => navigateTo("lehrpersonen")}>
+            Zur LP-Ansicht
+          </button>
+          <button onClick={handlePrint}>Drucken</button>
+        </div>
+
+        <h1>StundenplÃ¤ne nach Klassen</h1>
+
+        {classes.map((klasse) => {
+          const classBlocks = blockData.filter((b) => b.klasse === klasse);
+          return renderReadOnlySchedule(
+            klasse,
+            classBlocks,
+            "Nur Ansicht â€“ Ã„nderungen bitte auf der Hauptseite vornehmen."
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderTeacherSchedulesPage = () => {
+    return (
+      <div className="summary-page">
+        <div className="toolbar no-print">
+          <button onClick={() => navigateTo("main")}>â† Zur Hauptseite</button>
+          <button onClick={() => navigateTo("klassen")}>
+            Zur Klassen-Ansicht
+          </button>
+          <button onClick={handlePrint}>Drucken</button>
+        </div>
+
+        <h1>StundenplÃ¤ne nach Lehrpersonen</h1>
+
+        {teachers.length === 0 ? (
+          <p>Es sind noch keine Lehrpersonen im Stundenplan eingetragen.</p>
+        ) : (
+          teachers.map((lehrer) => {
+            const teacherBlocks = blockData.filter((b) =>
+              getTeacherListFromBlock(b).includes(lehrer)
+            );
+
+            return renderReadOnlySchedule(
+  lehrer,
+  teacherBlocks,
+  "Nur Ansicht â€“ Ã„nderungen bitte auf der Hauptseite vornehmen.",
+  { type: "teacher" }
+);
+          })
+        )}
+      </div>
+    );
+  };
+
+  if (currentView === "klassen") {
+    return (
+      <div className="App summary-view" style={sharedStyleVars}>
+        {renderClassSchedulesPage()}
+      </div>
+    );
   }
 
-  .App {
-    padding: 0;
+  if (currentView === "lehrpersonen") {
+    return (
+      <div className="App summary-view" style={sharedStyleVars}>
+        {renderTeacherSchedulesPage()}
+      </div>
+    );
   }
 
-  .no-print,
-  .toolbar,
-  .modal-overlay,
-  .palette-section,
-  .stats-panel,
-  .zoom-info {
-    display: none !important;
-  }
+  return (
+    <div className="App" style={sharedStyleVars}>
+      <h1>Stundenplan</h1>
 
-  .plan-wrapper {
-    overflow: visible;
-    border: none;
-    padding: 0;
-    border-radius: 0;
-    background: white;
-  }
+      <div className="toolbar no-print">
+        <button
+          onClick={() =>
+            setColorMode((prev) => (prev === "fach" ? "lehrer" : "fach"))
+          }
+        >
+          Farbmodus: {colorMode === "fach" ? "Fach" : "Lehrperson"}
+        </button>
 
-  .grid {
-    margin-top: 0;
-  }
+        <button onClick={openCreateModal}>+ Block erstellen</button>
+        <button onClick={() => setShowStats((prev) => !prev)}>
+          {showStats ? "Statistik ausblenden" : "Statistik anzeigen"}
+        </button>
+        <button onClick={() => navigateTo("klassen")}>KlassenplÃ¤ne</button>
+        <button onClick={() => navigateTo("lehrpersonen")}>LP-PlÃ¤ne</button>
+        <button onClick={exportData}>Speichern / Exportieren</button>
+        <button onClick={() => fileInputRef.current?.click()}>
+          Importieren
+        </button>
+        <button onClick={handlePrint}>Drucken</button>
+      </div>
 
-  .cell,
-  .day-header,
-  .class-header,
-  .time {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
+      <div className="toolbar no-print">
+        <button onClick={zoomOut}>Zoom -</button>
+        <button onClick={zoomIn}>Zoom +</button>
+        <button onClick={zoomReset}>Zoom 100%</button>
+        <button onClick={setOverview}>Gesamtansicht</button>
+        <button onClick={setNormalView}>Normalansicht</button>
+        <span className="zoom-info">Zoom: {Math.round(zoom * 100)}%</span>
+      </div>
 
-  .block,
-  .scheduled-block {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept=".json,application/json"
+        style={{ display: "none" }}
+        onChange={importData}
+      />
 
-  .summary-view {
-    --time-col-width: 23mm;
-    --cell-width: 31mm;
-    --cell-height: 14mm;
-    --grid-gap: 1.8mm;
-    --font-scale: 0.76;
-  }
+      {showStats && (
+        <div className="stats-panel no-print">
+          <div className="stats-header">
+            <h2>Statistik</h2>
+            <button onClick={() => setShowStats(false)}>Schliessen</button>
+          </div>
 
-  .summary-view .App,
-  .summary-page {
-    padding: 0;
-    margin: 0;
-  }
+          <div className="stats-tabs">
+            <button
+              className={
+                statsView === "overview" ? "tab-button active" : "tab-button"
+              }
+              onClick={() => setStatsView("overview")}
+            >
+              Ãœbersicht
+            </button>
+            <button
+              className={
+                statsView === "classSubject"
+                  ? "tab-button active"
+                  : "tab-button"
+              }
+              onClick={() => setStatsView("classSubject")}
+            >
+              nach Klasse + Fach
+            </button>
+            <button
+              className={
+                statsView === "teacher" ? "tab-button active" : "tab-button"
+              }
+              onClick={() => setStatsView("teacher")}
+            >
+              nach Lehrperson
+            </button>
+          </div>
 
-  .summary-page h1 {
-    margin: 0 0 4mm 0;
-    font-size: 16pt;
-  }
+          {statsView === "overview" && (
+            <>
+              <div className="stats-summary">
+                <div className="stats-card">
+                  <div className="stats-number">{totalScheduledBlocks}</div>
+                  <div className="stats-label">gesetzte BlÃ¶cke</div>
+                </div>
+                <div className="stats-card">
+                  <div className="stats-number">{totalLessons}</div>
+                  <div className="stats-label">geplante Lektionen</div>
+                </div>
+                <div className="stats-card warning-card">
+                  <div className="stats-number">{teacherConflicts.length}</div>
+                  <div className="stats-label">
+                    LP-Hinweise / Ãœberschneidungen
+                  </div>
+                </div>
+              </div>
 
-  .single-schedule-print-block {
-    margin: 0;
-    padding: 0;
-    page-break-after: always;
-    break-after: page;
-    break-inside: avoid;
-  }
+              <div className="conflict-list">
+                <h3>Lehrpersonen-Hinweise</h3>
+                {teacherConflicts.length === 0 ? (
+                  <div className="muted-cell">
+                    Keine markierten Ãœberschneidungen.
+                  </div>
+                ) : (
+                  <ul>
+                    {teacherConflicts.map((entry, index) => (
+                      <li key={`${entry.key}-${index}`}>
+                        <strong>{entry.lehrer}</strong>: {entry.tag},{" "}
+                        {entry.zeit}, {entry.klasse}, {entry.fach}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </>
+          )}
 
-  .single-schedule-print-block:last-child {
-    page-break-after: auto;
-    break-after: auto;
-  }
+          {statsView === "classSubject" && (
+            <div className="stats-table-wrapper">
+              <table className="stats-table">
+                <thead>
+                  <tr>
+                    <th>Klasse</th>
+                    <th>Fach</th>
+                    <th>Lektionen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(statsByClassAndSubject).flatMap(
+                    ([klasse, subjects]) => {
+                      const subjectEntries = Object.entries(subjects).sort(
+                        (a, b) => a[0].localeCompare(b[0], "de")
+                      );
 
-  .single-schedule-print-block h2 {
-    margin: 0 0 2mm 0;
-    font-size: 12pt;
-  }
+                      if (subjectEntries.length === 0) {
+                        return [
+                          <tr key={`${klasse}-empty`}>
+                            <td>{klasse}</td>
+                            <td className="muted-cell">â€“</td>
+                            <td className="muted-cell">0</td>
+                          </tr>,
+                        ];
+                      }
 
-  .summary-subtitle {
-    margin: 0 0 3mm 0;
-    font-size: 8.5pt;
-    color: #444;
-  }
+                      return subjectEntries.map(([fach, count]) => (
+                        <tr key={`${klasse}-${fach}`}>
+                          <td>{klasse}</td>
+                          <td>{fach}</td>
+                          <td>{count}</td>
+                        </tr>
+                      ));
+                    }
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-  .single-plan-wrapper {
-    overflow: visible;
-    margin-top: 0;
-  }
+          {statsView === "teacher" && (
+            <div className="stats-table-wrapper">
+              <table className="stats-table">
+                <thead>
+                  <tr>
+                    <th>Lehrperson</th>
+                    <th>Lektionen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {statsByTeacher.length === 0 ? (
+                    <tr>
+                      <td className="muted-cell">â€“</td>
+                      <td className="muted-cell">0</td>
+                    </tr>
+                  ) : (
+                    statsByTeacher.map(([lehrer, count]) => (
+                      <tr key={lehrer}>
+                        <td>{lehrer}</td>
+                        <td>{count}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
-  .single-grid {
-    width: 100%;
-    gap: var(--grid-gap);
-  }
+      <div className="plan-wrapper">
+        <div className="grid">
+          <div></div>
 
-  .summary-view .day-header,
-  .summary-view .time {
-    font-size: calc(0.68rem * var(--font-scale));
-    font-weight: 600;
-    padding: 1mm;
-  }
+          {days.map((d) => (
+            <div
+              key={d}
+              className="day-header"
+              style={{ gridColumn: "span 3" }}
+            >
+              {d}
+            </div>
+          ))}
 
-  .summary-view .read-only-cell {
-    min-height: var(--cell-height);
-    overflow: visible;
-  }
+          <div></div>
 
-  .summary-view .block {
-    padding: 1.2mm;
-    text-shadow: none;
-  }
+          {days.map((d) =>
+            classes.map((c) => (
+              <div key={d + c} className="class-header">
+                {c}
+              </div>
+            ))
+          )}
 
-  .summary-view .fach {
-    font-size: calc(0.74rem * var(--font-scale));
-    line-height: 1.05;
-  }
+          {times.map((t, rowIndex) => (
+            <React.Fragment key={rowIndex}>
+              <div className="time">{t}</div>
 
-  .summary-view .fach-zusatz {
-    font-size: calc(0.54rem * var(--font-scale));
-  }
+              {days.map((d) =>
+                classes.map((c) => (
+                  <div
+                    key={d + c + rowIndex}
+                    className="cell"
+                    style={{
+                      backgroundColor:
+                        rowIndex === 5 || rowIndex === 6 ? "#eee" : "",
+                    }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => handleDropToCell(e, d, c, rowIndex)}
+                  >
+                    {renderBlocksInCell(d, c, rowIndex)}
+                  </div>
+                ))
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
 
-  .summary-view .klasse,
-  .summary-view .lehrer,
-  .summary-view .dauer-label {
-    font-size: calc(0.58rem * var(--font-scale));
-    line-height: 1.05;
-  }
+      <div className="palette-section no-print">
+        <h2>Block-Palette</h2>
+        <div
+          className={`palette-big ${
+            isPaletteDragOver ? "palette-drop-active" : ""
+          }`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsPaletteDragOver(true);
+          }}
+          onDragLeave={() => setIsPaletteDragOver(false)}
+          onDrop={handleDropToPalette}
+        >
+          {paletteBlocks.map((b) => {
+            const durationLabel = getDurationLabel(b.dauer);
 
-  .summary-view .conflict-badge {
-    width: 4mm;
-    height: 4mm;
-    top: 1mm;
-    right: 1mm;
-    font-size: 7pt;
-  }
+            return (
+              <div
+                key={b.id}
+                className={`block palette-block ${
+                  selectedBlock === b.id ? "selected" : ""
+                }`}
+                style={{ backgroundColor: getColor(b) }}
+                draggable
+                onClick={() => setSelectedBlock(b.id)}
+                onDoubleClick={() => openEditModal(b, true)}
+                onDragStart={(e) => e.dataTransfer.setData("id", b.id)}
+                title={`${getSubjectDisplay(b)} â€“ ${b.klasse} â€“ ${getTeacherDisplay(b)}`}
+              >
+                <div className="fach">
+                  {b.fach}
+                  {b.fachZusatz && (
+                    <span className="fach-zusatz">
+                      ({b.fachZusatz.toLowerCase()})
+                    </span>
+                  )}
+                </div>
+                <div className="klasse">{b.klasse}</div>
+                <div className="lehrer">{getTeacherDisplay(b)}</div>
+                {durationLabel && (
+                  <div className="dauer-label">{durationLabel}</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="palette-hint no-print">
+          Ziehe BlÃ¶cke aus dem Stundenplan zurÃ¼ck in die Palette, um sie wieder
+          als Vorratsblock abzulegen.
+        </div>
+      </div>
+
+      {showFormModal && (
+        <div className="modal-overlay no-print" onClick={closeFormModal}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>
+                {formMode === "create"
+                  ? "Block erstellen"
+                  : "Block bearbeiten"}
+              </h2>
+              <button className="modal-close-button" onClick={closeFormModal}>
+                Ã—
+              </button>
+            </div>
+
+            <form className="block-form" onSubmit={handleFormSubmit}>
+              <label className="form-field">
+                <span>Fach</span>
+                <input
+                  type="text"
+                  value={formData.fach}
+                  onChange={(e) => handleFormChange("fach", e.target.value)}
+                  placeholder="z. B. Mathematik"
+                />
+              </label>
+
+              <label className="form-field">
+                <span>Zusatz</span>
+                <select
+                  value={formData.fachZusatz}
+                  onChange={(e) =>
+                    handleFormChange("fachZusatz", e.target.value)
+                  }
+                >
+                  <option value="">kein Zusatz</option>
+                  {subjectAddons.map((addon) => (
+                    <option key={addon} value={addon}>
+                      ({addon.toLowerCase()})
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="form-field">
+                <span>Klasse</span>
+                <select
+                  value={formData.klasse}
+                  onChange={(e) => handleFormChange("klasse", e.target.value)}
+                  
+                >
+                  {classes.map((klasse) => (
+                    <option key={klasse} value={klasse}>
+                      {klasse}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="form-field">
+                <span>Lehrpersonen</span>
+
+                <div className="teacher-fields">
+                  {formData.lehrpersonen.map((teacher, index) => (
+                    <div key={index} className="teacher-row">
+                      <input
+                        type="text"
+                        value={teacher}
+                        onChange={(e) =>
+                          handleTeacherChange(index, e.target.value)
+                        }
+                        placeholder={
+                          index === 0
+                            ? "z. B. Herr Meier"
+                            : "weitere Lehrperson"
+                        }
+                      />
+
+                      <div className="teacher-row-actions">
+                        {formData.lehrpersonen.length > 1 && (
+                          <button
+                            type="button"
+                            className="small-button"
+                            onClick={() => removeTeacherField(index)}
+                          >
+                            âˆ’
+                          </button>
+                        )}
+
+                        {index === formData.lehrpersonen.length - 1 && (
+                          <button
+                            type="button"
+                            className="small-button"
+                            onClick={addTeacherField}
+                          >
+                            +
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <label className="form-field">
+                <span>Dauer</span>
+                <select
+                  value={formData.dauer}
+                  onChange={(e) => handleFormChange("dauer", e.target.value)}
+                >
+                  <option value={1}>1 Lektion</option>
+                  <option value={2}>2 Lektionen (Doppelstunde)</option>
+                  <option value={3}>3 Lektionen (Triple-Lektion)</option>
+                </select>
+              </label>
+
+              <label className="checkbox-field">
+                <input
+                  type="checkbox"
+                  checked={formData.allowTeacherConflict === true}
+                  onChange={(e) =>
+                    handleFormChange("allowTeacherConflict", e.target.checked)
+                  }
+                />
+                <span>
+                  LP-Ãœberschneidung fÃ¼r diesen Block erlauben
+                  <small>
+                    FÃ¼r IVE, Projektunterricht oder andere echte Parallel-EinsÃ¤tze.
+                    Der Block bleibt trotzdem im LP-Stundenplan sichtbar.
+                  </small>
+                </span>
+              </label>
+
+              {formMode === "edit" &&
+                !editingIsPalette &&
+                blockData.some((b) => b.id === editingBlockId) && (
+                  <div className="form-hint">
+                    Die Klasse kann geÃ¤ndert werden, sofern am gleichen Tag und
+                    zur gleichen Zeit in der Zielklasse ein Platz frei ist.
+                  </div>
+                )}
+
+              <div className="modal-actions">
+                <button type="button" onClick={closeFormModal}>
+                  Abbrechen
+                </button>
+                <button type="submit">
+                  {formMode === "create" ? "Erstellen" : "Speichern"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
-/* Ergänzung für App.css: Scrollbares Bearbeitungsfenster */
 
-.modal-card {
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.checkbox-field {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-}
-
-.checkbox-field input {
-  width: auto;
-  margin-top: 3px;
-  flex-shrink: 0;
-}
-
-.checkbox-field small {
-  display: block;
-  color: #666;
-  font-weight: normal;
-  margin-top: 3px;
-  line-height: 1.3;
-}
-
-.conflict-ok-label {
-  font-size: calc(0.52rem * var(--font-scale));
-  opacity: 0.9;
-}
+export default App;
