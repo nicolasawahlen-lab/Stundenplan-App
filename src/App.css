@@ -443,8 +443,7 @@ select {
 }
 
 .conflict-ok-label {
-  font-size: calc(0.52rem * var(--font-scale));
-  opacity: 0.9;
+  display: none !important;
 }
 
 .small-button {
@@ -767,7 +766,4 @@ select {
 .summary-view .read-only-block {
   left: 0% !important;
   width: 100% !important;
-}
-.conflict-ok-label {
-  display: none !important;
 }
