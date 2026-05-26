@@ -747,3 +747,20 @@ select {
 .summary-view .combined-teacher-block .klasse {
   font-weight: 600;
 }
+.summary-view .combined-teacher-block {
+  left: 0% !important;
+  width: 100% !important;
+}
+
+.summary-view .read-only-block .lehrer {
+  display: none;
+}
+
+.summary-view .combined-teacher-block .fach {
+  font-size: calc(0.82rem * var(--font-scale));
+  line-height: 1.05;
+}
+
+.summary-view .combined-teacher-block .klasse {
+  font-weight: 600;
+}

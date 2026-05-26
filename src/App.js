@@ -1016,151 +1016,150 @@ const getClassDisplayForTeacherSchedule = useCallback(
 
   const renderReadOnlySchedule = (title, blocks, subtitle = null, options = {}) => {
   const isTeacherSchedule = options.type === "teacher";
-    const renderReadOnlyBlocksInCell = (day, rowIndex) => {
-  const blocksStartingHereRaw = blocks
-    .filter((b) => b.tag === day && b.lektion === rowIndex)
-    .sort((a, b) => (a.parallelSlot ?? 0) - (b.parallelSlot ?? 0));
 
-  const blocksStartingHere = isTeacherSchedule
-    ? blocksStartingHereRaw.filter((block, index, allBlocks) => {
-        const classDisplay = getClassDisplayForTeacherSchedule(block, title);
+  const getGroupedTeacherBlocks = (cellBlocks) => {
+    if (!isTeacherSchedule) return cellBlocks;
 
-        const groupKey = [
-          block.tag,
-          block.lektion,
-          block.dauer || 1,
-          String(block.fach || "").trim(),
-          String(block.fachZusatz || "").trim(),
-          classDisplay,
-        ].join("|");
+    const groups = new Map();
 
-        return (
-          allBlocks.findIndex((other) => {
-            const otherClassDisplay = getClassDisplayForTeacherSchedule(
-              other,
-              title
-            );
+    cellBlocks.forEach((block) => {
+      if (!block.allowTeacherConflict) {
+        groups.set(block.id, {
+          ...block,
+          _classDisplay: block.klasse,
+          _forceFullWidth: false,
+        });
+        return;
+      }
 
-            const otherGroupKey = [
-              other.tag,
-              other.lektion,
-              other.dauer || 1,
-              String(other.fach || "").trim(),
-              String(other.fachZusatz || "").trim(),
-              otherClassDisplay,
-            ].join("|");
+      const key = [
+        block.tag,
+        block.lektion,
+        block.dauer || 1,
+        String(block.fach || "").trim(),
+        String(block.fachZusatz || "").trim(),
+      ].join("|");
 
-            return otherGroupKey === groupKey;
-          }) === index
-        );
-      })
-    : blocksStartingHereRaw;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          ...block,
+          _classDisplay: getClassDisplayForTeacherSchedule(block, title),
+          _forceFullWidth: true,
+        });
+      }
+    });
 
-  const isSingleBlock = blocksStartingHere.length === 1;
-
-  return blocksStartingHere.map((b) => {
-    const slot = b.parallelSlot ?? 0;
-    const dauer = b.dauer || 1;
-    const teacherOverlap = hasTeacherOverlap(b);
-    const durationLabel = getDurationLabel(dauer);
-
-    const classDisplay = isTeacherSchedule
-      ? getClassDisplayForTeacherSchedule(b, title)
-      : b.klasse;
-
-    const isCombinedTeacherBlock =
-      isTeacherSchedule && classDisplay !== b.klasse;
-
-    return (
-      <div
-        key={`${b.id}-${classDisplay}`}
-        className={`block scheduled-block read-only-block ${
-          teacherOverlap ? "teacher-overlap" : ""
-        } ${isCombinedTeacherBlock ? "combined-teacher-block" : ""}`}
-        style={{
-          backgroundColor: getColor(b),
-          left:
-            isTeacherSchedule || isSingleBlock
-              ? "0%"
-              : slot === 0
-              ? "0%"
-              : "50%",
-          width: isTeacherSchedule || isSingleBlock ? "100%" : "50%",
-          height: `calc(${dauer} * var(--cell-height) + ${
-            dauer - 1
-          } * var(--grid-gap))`,
-          zIndex: teacherOverlap ? 20 : 10,
-          cursor: "default",
-        }}
-        title={`${getSubjectDisplay(b)} – ${classDisplay} – ${getTeacherDisplay(
-          b
-        )}`}
-      >
-        <div className="fach">
-          {b.fach}
-          {b.fachZusatz && (
-            <span className="fach-zusatz">
-              ({b.fachZusatz.toLowerCase()})
-            </span>
-          )}
-        </div>
-
-        <div className="klasse">{classDisplay}</div>
-
-        {!isTeacherSchedule && (
-          <div className="lehrer">{getTeacherDisplay(b)}</div>
-        )}
-
-        {durationLabel && <div className="dauer-label">{durationLabel}</div>}
-
-        {b.allowTeacherConflict && (
-          <div className="conflict-ok-label">LP-Konflikt erlaubt</div>
-        )}
-
-        {teacherOverlap && <div className="conflict-badge">!</div>}
-      </div>
-    );
-  });
-};
-
-    return (
-      <div className="single-schedule-print-block" key={title}>
-        <h2>{title}</h2>
-        {subtitle && <div className="summary-subtitle">{subtitle}</div>}
-
-        <div className="single-plan-wrapper">
-          <div className="single-grid">
-            <div className="time header-cell">Zeit</div>
-
-            {days.map((d) => (
-              <div key={d} className="day-header">
-                {d}
-              </div>
-            ))}
-
-            {times.map((t, rowIndex) => (
-              <React.Fragment key={`${title}-${rowIndex}`}>
-                <div className="time">{t}</div>
-
-                {days.map((d) => (
-                  <div
-                    key={`${title}-${d}-${rowIndex}`}
-                    className="cell read-only-cell"
-                    style={{
-                      backgroundColor:
-                        rowIndex === 5 || rowIndex === 6 ? "#eee" : "",
-                    }}
-                  >
-                    {renderReadOnlyBlocksInCell(d, rowIndex)}
-                  </div>
-                ))}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+    return Array.from(groups.values());
   };
+
+  const renderReadOnlyBlocksInCell = (day, rowIndex) => {
+    const rawBlocks = blocks
+      .filter((b) => b.tag === day && b.lektion === rowIndex)
+      .sort((a, b) => (a.parallelSlot ?? 0) - (b.parallelSlot ?? 0));
+
+    const blocksStartingHere = getGroupedTeacherBlocks(rawBlocks);
+    const isSingleBlock = blocksStartingHere.length === 1;
+
+    return blocksStartingHere.map((b) => {
+      const slot = b.parallelSlot ?? 0;
+      const dauer = b.dauer || 1;
+      const teacherOverlap = hasTeacherOverlap(b);
+      const durationLabel = getDurationLabel(dauer);
+
+      const classDisplay = isTeacherSchedule
+        ? b._classDisplay || getClassDisplayForTeacherSchedule(b, title)
+        : b.klasse;
+
+      const forceFullWidth = isTeacherSchedule && b._forceFullWidth;
+
+      return (
+        <div
+          key={`${b.id}-${classDisplay}`}
+          className={`block scheduled-block read-only-block ${
+            teacherOverlap ? "teacher-overlap" : ""
+          } ${forceFullWidth ? "combined-teacher-block" : ""}`}
+          style={{
+            backgroundColor: getColor(b),
+            left:
+              forceFullWidth || isSingleBlock
+                ? "0%"
+                : slot === 0
+                ? "0%"
+                : "50%",
+            width: forceFullWidth || isSingleBlock ? "100%" : "50%",
+            height: `calc(${dauer} * var(--cell-height) + ${
+              dauer - 1
+            } * var(--grid-gap))`,
+            zIndex: teacherOverlap ? 20 : 10,
+            cursor: "default",
+          }}
+          title={`${getSubjectDisplay(b)} – ${classDisplay} – ${getTeacherDisplay(b)}`}
+        >
+          <div className="fach">
+            {b.fach}
+            {b.fachZusatz && (
+              <span className="fach-zusatz">
+                ({b.fachZusatz.toLowerCase()})
+              </span>
+            )}
+          </div>
+
+          <div className="klasse">{classDisplay}</div>
+
+          {!isTeacherSchedule && (
+            <div className="lehrer">{getTeacherDisplay(b)}</div>
+          )}
+
+          {durationLabel && <div className="dauer-label">{durationLabel}</div>}
+
+          {b.allowTeacherConflict && (
+            <div className="conflict-ok-label">LP-Konflikt erlaubt</div>
+          )}
+
+          {teacherOverlap && <div className="conflict-badge">!</div>}
+        </div>
+      );
+    });
+  };
+
+  return (
+    <div className="single-schedule-print-block" key={title}>
+      <h2>{title}</h2>
+      {subtitle && <div className="summary-subtitle">{subtitle}</div>}
+
+      <div className="single-plan-wrapper">
+        <div className="single-grid">
+          <div className="time header-cell">Zeit</div>
+
+          {days.map((d) => (
+            <div key={d} className="day-header">
+              {d}
+            </div>
+          ))}
+
+          {times.map((t, rowIndex) => (
+            <React.Fragment key={`${title}-${rowIndex}`}>
+              <div className="time">{t}</div>
+
+              {days.map((d) => (
+                <div
+                  key={`${title}-${d}-${rowIndex}`}
+                  className="cell read-only-cell"
+                  style={{
+                    backgroundColor:
+                      rowIndex === 5 || rowIndex === 6 ? "#eee" : "",
+                  }}
+                >
+                  {renderReadOnlyBlocksInCell(d, rowIndex)}
+                </div>
+              ))}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
   const handlePrint = () => {
     window.print();
