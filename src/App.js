@@ -899,9 +899,27 @@ function App() {
       )
       .sort((a, b) => (a.parallelSlot ?? 0) - (b.parallelSlot ?? 0));
 
-    const isSingleBlock = blocksStartingHere.length === 1;
+    const visibleBlocksStartingHere = isTeacherSchedule
+  ? blocksStartingHere.filter((block, index, allBlocks) => {
+      const groupKey = `${block.tag}-${block.lektion}-${block.dauer || 1}-${String(
+        block.fach || ""
+      ).trim()}-${getClassDisplayForTeacherSchedule(block, title)}`;
 
-    return blocksStartingHere.map((b) => {
+      return (
+        allBlocks.findIndex((other) => {
+          const otherGroupKey = `${other.tag}-${other.lektion}-${other.dauer || 1}-${String(
+            other.fach || ""
+          ).trim()}-${getClassDisplayForTeacherSchedule(other, title)}`;
+
+          return otherGroupKey === groupKey;
+        }) === index
+      );
+    })
+  : blocksStartingHere;
+
+const isSingleBlock = visibleBlocksStartingHere.length === 1;
+
+    return visibleBlocksStartingHere.map((b) => {
       const slot = b.parallelSlot ?? 0;
       const dauer = b.dauer || 1;
       const teacherOverlap = hasTeacherOverlap(b);
@@ -915,8 +933,8 @@ function App() {
           } ${teacherOverlap ? "teacher-overlap" : ""}`}
           style={{
             backgroundColor: getColor(b),
-            left: isSingleBlock ? "0%" : slot === 0 ? "0%" : "50%",
-            width: isSingleBlock ? "100%" : "50%",
+            left: isTeacherSchedule ? "0%" : isSingleBlock ? "0%" : slot === 0 ? "0%" : "50%",
+            width: isTeacherSchedule ? "100%" : isSingleBlock ? "100%" : "50%",
             height: `calc(${dauer} * var(--cell-height) + ${
               dauer - 1
             } * var(--grid-gap))`,
@@ -1299,8 +1317,8 @@ const getClassDisplayForTeacherSchedule = useCallback(
         <button onClick={() => setShowStats((prev) => !prev)}>
           {showStats ? "Statistik ausblenden" : "Statistik anzeigen"}
         </button>
-        <button onClick={() => navigateTo("klassen")}>KlassenplÃ¤ne</button>
-        <button onClick={() => navigateTo("lehrpersonen")}>LP-PlÃ¤ne</button>
+        <button onClick={() => navigateTo("klassen")}>Klassenpläne</button>
+        <button onClick={() => navigateTo("lehrpersonen")}>LP-Pläne</button>
         <button onClick={exportData}>Speichern / Exportieren</button>
         <button onClick={() => fileInputRef.current?.click()}>
           Importieren
@@ -1384,7 +1402,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
                 <h3>Lehrpersonen-Hinweise</h3>
                 {teacherConflicts.length === 0 ? (
                   <div className="muted-cell">
-                    Keine markierten Ãœberschneidungen.
+                    Keine markierten Überschneidungen.
                   </div>
                 ) : (
                   <ul>
