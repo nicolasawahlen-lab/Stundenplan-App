@@ -696,3 +696,37 @@ select {
   font-size: calc(0.52rem * var(--font-scale));
   opacity: 0.9;
 }
+/* =========================================
+   LP-Ansicht optimieren
+========================================= */
+
+.summary-view .read-only-block .fach {
+  font-size: calc(0.78rem * var(--font-scale));
+  line-height: 1.05;
+}
+
+.summary-view .read-only-block .klasse {
+  font-size: calc(0.62rem * var(--font-scale));
+  line-height: 1.05;
+}
+
+/* In LP-Ansicht keine langen Lehrpersonen-Listen anzeigen */
+
+.summary-view .read-only-block .lehrer {
+  display: none;
+}
+
+/* Klassenzusammenfassung kompakter */
+
+.summary-view .read-only-block .klasse {
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+/* Bessere Darstellung bei Doppel-/Triplelektionen */
+
+.summary-view .read-only-block {
+  overflow: hidden;
+  justify-content: flex-start;
+  padding-top: 4px;
+}
