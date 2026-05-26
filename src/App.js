@@ -893,98 +893,70 @@ function App() {
   const totalScheduledBlocks = blockData.length;
 
   const renderBlocksInCell = (day, klasse, rowIndex) => {
-    const blocksStartingHere = blockData
-      .filter(
-        (b) => b.tag === day && b.klasse === klasse && b.lektion === rowIndex
-      )
-      .sort((a, b) => (a.parallelSlot ?? 0) - (b.parallelSlot ?? 0));
+  const blocksStartingHere = blockData
+    .filter(
+      (b) => b.tag === day && b.klasse === klasse && b.lektion === rowIndex
+    )
+    .sort((a, b) => (a.parallelSlot ?? 0) - (b.parallelSlot ?? 0));
 
-   const visibleBlocksStartingHere = isTeacherSchedule
-  ? blocksStartingHere.filter((block, index, allBlocks) => {
-      const groupKey = [
-        block.tag,
-        block.lektion,
-        block.dauer || 1,
-        String(block.fach || "").trim(),
-        String(block.fachZusatz || "").trim(),
-        getClassDisplayForTeacherSchedule(block, title),
-      ].join("|");
+  const isSingleBlock = blocksStartingHere.length === 1;
 
-      return (
-        allBlocks.findIndex((other) => {
-          const otherGroupKey = [
-            other.tag,
-            other.lektion,
-            other.dauer || 1,
-            String(other.fach || "").trim(),
-            String(other.fachZusatz || "").trim(),
-            getClassDisplayForTeacherSchedule(other, title),
-          ].join("|");
+  return blocksStartingHere.map((b) => {
+    const slot = b.parallelSlot ?? 0;
+    const dauer = b.dauer || 1;
+    const teacherOverlap = hasTeacherOverlap(b);
+    const durationLabel = getDurationLabel(dauer);
 
-          return otherGroupKey === groupKey;
-        }) === index
-      );
-    })
-  : blocksStartingHere;
-
-const isSingleBlock = visibleBlocksStartingHere.length === 1;
-
-return visibleBlocksStartingHere.map((b) => {
-      const slot = b.parallelSlot ?? 0;
-      const dauer = b.dauer || 1;
-      const teacherOverlap = hasTeacherOverlap(b);
-      const durationLabel = getDurationLabel(dauer);
-
-      return (
-        <div
-          key={b.id}
-          className={`block scheduled-block ${
-            selectedBlock === b.id ? "selected" : ""
-          } ${teacherOverlap ? "teacher-overlap" : ""}`}
-          style={{
-            backgroundColor: getColor(b),
-            left: isTeacherSchedule ? "0%" : isSingleBlock ? "0%" : slot === 0 ? "0%" : "50%",
-            width: isTeacherSchedule ? "100%" : isSingleBlock ? "100%" : "50%",
-            height: `calc(${dauer} * var(--cell-height) + ${
-              dauer - 1
-            } * var(--grid-gap))`,
-            zIndex: teacherOverlap ? 20 : 10,
-          }}
-          title={
-            b.allowTeacherConflict
-              ? `${getSubjectDisplay(
-                  b
-                )} – ${b.klasse} – ${getTeacherDisplay(
-                  b
-                )} – LP-Überschneidung erlaubt`
-              : teacherOverlap
-              ? `Achtung: ${getTeacherDisplay(
-                  b
-                )} ist am ${b.tag} parallel eingeplant.`
-              : `${getSubjectDisplay(b)} – ${b.klasse} – ${getTeacherDisplay(b)}`
-          }
-          draggable
-          onClick={() => setSelectedBlock(b.id)}
-          onDoubleClick={() => openEditModal(b, false)}
-          onDragStart={(e) => e.dataTransfer.setData("id", b.id)}
-        >
-          <div className="fach">
-            {b.fach}
-            {b.fachZusatz && (
-              <span className="fach-zusatz">({b.fachZusatz.toLowerCase()})</span>
-            )}
-          </div>
-          <div className="klasse">{b.klasse}</div>
-          <div className="lehrer">{getTeacherDisplay(b)}</div>
-          {durationLabel && <div className="dauer-label">{durationLabel}</div>}
-          {b.allowTeacherConflict && (
-            <div className="conflict-ok-label">LP-Konflikt erlaubt</div>
+    return (
+      <div
+        key={b.id}
+        className={`block scheduled-block ${
+          selectedBlock === b.id ? "selected" : ""
+        } ${teacherOverlap ? "teacher-overlap" : ""}`}
+        style={{
+          backgroundColor: getColor(b),
+          left: isSingleBlock ? "0%" : slot === 0 ? "0%" : "50%",
+          width: isSingleBlock ? "100%" : "50%",
+          height: `calc(${dauer} * var(--cell-height) + ${
+            dauer - 1
+          } * var(--grid-gap))`,
+          zIndex: teacherOverlap ? 20 : 10,
+        }}
+        title={
+          b.allowTeacherConflict
+            ? `${getSubjectDisplay(b)} – ${b.klasse} – ${getTeacherDisplay(
+                b
+              )} – LP-Überschneidung erlaubt`
+            : teacherOverlap
+            ? `Achtung: ${getTeacherDisplay(
+                b
+              )} ist am ${b.tag} parallel eingeplant.`
+            : `${getSubjectDisplay(b)} – ${b.klasse} – ${getTeacherDisplay(b)}`
+        }
+        draggable
+        onClick={() => setSelectedBlock(b.id)}
+        onDoubleClick={() => openEditModal(b, false)}
+        onDragStart={(e) => e.dataTransfer.setData("id", b.id)}
+      >
+        <div className="fach">
+          {b.fach}
+          {b.fachZusatz && (
+            <span className="fach-zusatz">
+              ({b.fachZusatz.toLowerCase()})
+            </span>
           )}
-          {teacherOverlap && <div className="conflict-badge">!</div>}
         </div>
-      );
-    });
-  };
+        <div className="klasse">{b.klasse}</div>
+        <div className="lehrer">{getTeacherDisplay(b)}</div>
+        {durationLabel && <div className="dauer-label">{durationLabel}</div>}
+        {b.allowTeacherConflict && (
+          <div className="conflict-ok-label">LP-Konflikt erlaubt</div>
+        )}
+        {teacherOverlap && <div className="conflict-badge">!</div>}
+      </div>
+    );
+  });
+};
 const getClassDisplayForTeacherSchedule = useCallback(
   (block, currentTeacher) => {
     if (!block?.allowTeacherConflict || !currentTeacher) {
