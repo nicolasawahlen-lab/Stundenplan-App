@@ -769,4 +769,5 @@ select {
   width: 100% !important;
 }
 .conflict-ok-label {
-  display: none;
+  display: none !important;
+}
