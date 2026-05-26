@@ -899,9 +899,37 @@ function App() {
       )
       .sort((a, b) => (a.parallelSlot ?? 0) - (b.parallelSlot ?? 0));
 
-    const isSingleBlock = blocksStartingHere.length === 1;
+   const visibleBlocksStartingHere = isTeacherSchedule
+  ? blocksStartingHere.filter((block, index, allBlocks) => {
+      const groupKey = [
+        block.tag,
+        block.lektion,
+        block.dauer || 1,
+        String(block.fach || "").trim(),
+        String(block.fachZusatz || "").trim(),
+        getClassDisplayForTeacherSchedule(block, title),
+      ].join("|");
 
-    return blocksStartingHere.map((b) => {
+      return (
+        allBlocks.findIndex((other) => {
+          const otherGroupKey = [
+            other.tag,
+            other.lektion,
+            other.dauer || 1,
+            String(other.fach || "").trim(),
+            String(other.fachZusatz || "").trim(),
+            getClassDisplayForTeacherSchedule(other, title),
+          ].join("|");
+
+          return otherGroupKey === groupKey;
+        }) === index
+      );
+    })
+  : blocksStartingHere;
+
+const isSingleBlock = visibleBlocksStartingHere.length === 1;
+
+return visibleBlocksStartingHere.map((b) => {
       const slot = b.parallelSlot ?? 0;
       const dauer = b.dauer || 1;
       const teacherOverlap = hasTeacherOverlap(b);
@@ -915,8 +943,8 @@ function App() {
           } ${teacherOverlap ? "teacher-overlap" : ""}`}
           style={{
             backgroundColor: getColor(b),
-            left: isSingleBlock ? "0%" : slot === 0 ? "0%" : "50%",
-            width: isSingleBlock ? "100%" : "50%",
+            left: isTeacherSchedule ? "0%" : isSingleBlock ? "0%" : slot === 0 ? "0%" : "50%",
+            width: isTeacherSchedule ? "100%" : isSingleBlock ? "100%" : "50%",
             height: `calc(${dauer} * var(--cell-height) + ${
               dauer - 1
             } * var(--grid-gap))`,
