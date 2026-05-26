@@ -754,7 +754,7 @@ function App() {
 
     if (block.klasse !== klasse) {
       alert(
-        `Dieser Block gehÃ¶rt zur ${block.klasse} und kann nur in dieser Klassen-Spalte gesetzt werden.`
+        `Dieser Block gehoert zur ${block.klasse} und kann nur in dieser Klassen-Spalte gesetzt werden.`
       );
       return;
     }
@@ -774,7 +774,7 @@ function App() {
         alert("Der Block passt hier nicht mehr nach unten.");
       } else {
         alert(
-          "Hier ist kein passender Parallel-Slot frei. FÃ¼r mehrstÃ¼ndige BlÃ¶cke muss derselbe Slot in allen benÃ¶tigten Lektionen frei sein."
+          "Hier ist kein passender Parallel-Slot frei. FÃ¼r mehrstÃ¼ndige Blöcke muss derselbe Slot in allen benÃ¶tigten Lektionen frei sein."
         );
       }
       return;
@@ -1317,8 +1317,8 @@ const getClassDisplayForTeacherSchedule = useCallback(
         <button onClick={() => setShowStats((prev) => !prev)}>
           {showStats ? "Statistik ausblenden" : "Statistik anzeigen"}
         </button>
-        <button onClick={() => navigateTo("klassen")}>Klassenpläne</button>
-        <button onClick={() => navigateTo("lehrpersonen")}>LP-Pläne</button>
+        <button onClick={() => navigateTo("klassen")}>Klassenplaene</button>
+        <button onClick={() => navigateTo("lehrpersonen")}>LP-Plaene</button>
         <button onClick={exportData}>Speichern / Exportieren</button>
         <button onClick={() => fileInputRef.current?.click()}>
           Importieren
@@ -1713,9 +1713,9 @@ const getClassDisplayForTeacherSchedule = useCallback(
                   }
                 />
                 <span>
-                  LP-Ãœberschneidung fÃ¼r diesen Block erlauben
+                  LP-Überschneidung für diesen Block erlauben
                   <small>
-                    FÃ¼r IVE, Projektunterricht oder andere echte Parallel-EinsÃ¤tze.
+                    FÜr IVE, Projektunterricht oder andere echte Parallel-EinsÃ¤tze.
                     Der Block bleibt trotzdem im LP-Stundenplan sichtbar.
                   </small>
                 </span>
@@ -1725,7 +1725,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
                 !editingIsPalette &&
                 blockData.some((b) => b.id === editingBlockId) && (
                   <div className="form-hint">
-                    Die Klasse kann geÃ¤ndert werden, sofern am gleichen Tag und
+                    Die Klasse kann geändert werden, sofern am gleichen Tag und
                     zur gleichen Zeit in der Zielklasse ein Platz frei ist.
                   </div>
                 )}
