@@ -948,7 +948,7 @@ function App() {
         </div>
         <div className="klasse">{b.klasse}</div>
         <div className="lehrer">{getTeacherDisplay(b)}</div>
-        {durationLabel && <div className="dauer-label">{durationLabel}</div>}
+        
         {b.allowTeacherConflict && (
           <div className="conflict-ok-label">LP-Konflikt erlaubt</div>
         )}
@@ -1080,7 +1080,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
 
           <div className="lehrer">{getTeacherDisplay(b)}</div>
 
-          {durationLabel && <div className="dauer-label">{durationLabel}</div>}
+          
 
           {b.allowTeacherConflict && (
             <div className="conflict-ok-label">LP-Konflikt erlaubt</div>
