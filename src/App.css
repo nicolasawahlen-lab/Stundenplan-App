@@ -766,3 +766,13 @@ select {
   font-size: calc(0.65rem * var(--font-scale)) !important;
   line-height: 1.1 !important;
 }
+/* Text in allen Blöcken vertikal und horizontal zentrieren */
+.block,
+.read-only-block {
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* Hinweis Doppel-/Triplelektion ausblenden */
+.dauer-label {
+  display: none !important;
