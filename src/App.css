@@ -709,11 +709,6 @@ select {
   line-height: 1.05;
 }
 
-/* In LP-Ansicht keine langen Lehrpersonen-Listen anzeigen */
-
-.summary-view.teacher-summary-view .read-only-block .lehrer {
-  display: block;
-}
 
 /* Klassenzusammenfassung kompakter */
 
