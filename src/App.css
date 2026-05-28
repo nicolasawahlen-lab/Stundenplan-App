@@ -711,7 +711,7 @@ select {
 
 /* In LP-Ansicht keine langen Lehrpersonen-Listen anzeigen */
 
-.summary-view .read-only-block .lehrer {
+.summary-view.teacher-summary-view .read-only-block .lehrer {
   display: none;
 }
 

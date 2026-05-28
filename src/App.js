@@ -1325,12 +1325,12 @@ const getClassDisplayForTeacherSchedule = useCallback(
   }
 
   if (currentView === "lehrpersonen") {
-    return (
-      <div className="App summary-view" style={sharedStyleVars}>
-        {renderTeacherSchedulesPage()}
-      </div>
-    );
-  }
+  return (
+    <div className="App summary-view teacher-summary-view" style={sharedStyleVars}>
+      {renderTeacherSchedulesPage()}
+    </div>
+  );
+}
 
   return (
     <div className="App" style={sharedStyleVars}>
