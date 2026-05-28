@@ -712,7 +712,7 @@ select {
 /* In LP-Ansicht keine langen Lehrpersonen-Listen anzeigen */
 
 .summary-view.teacher-summary-view .read-only-block .lehrer {
-  display: none;
+  display: block;
 }
 
 /* Klassenzusammenfassung kompakter */
