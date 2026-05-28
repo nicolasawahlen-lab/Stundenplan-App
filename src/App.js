@@ -1078,9 +1078,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
 
           <div className="klasse">{classDisplay}</div>
 
-          {!isTeacherSchedule && (
-            <div className="lehrer">{getTeacherDisplay(b)}</div>
-          )}
+          <div className="lehrer">{getTeacherDisplay(b)}</div>
 
           {durationLabel && <div className="dauer-label">{durationLabel}</div>}
 
