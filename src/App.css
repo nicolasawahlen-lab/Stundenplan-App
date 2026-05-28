@@ -729,9 +729,7 @@ select {
   width: 100% !important;
 }
 
-.summary-view .read-only-block .lehrer {
-  display: none;
-}
+
 
 .summary-view .combined-teacher-block .fach {
   font-size: calc(0.82rem * var(--font-scale));
