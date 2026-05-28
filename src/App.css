@@ -729,8 +729,6 @@ select {
   width: 100% !important;
 }
 
-
-
 .summary-view .combined-teacher-block .fach {
   font-size: calc(0.82rem * var(--font-scale));
   line-height: 1.05;
@@ -756,4 +754,15 @@ select {
 .summary-view .read-only-block {
   left: 0% !important;
   width: 100% !important;
+}
+/* Lehrpersonen in Klassen- und LP-Plänen wieder anzeigen */
+.summary-view .read-only-block .lehrer {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  font-size: calc(0.65rem * var(--font-scale)) !important;
+  line-height: 1.1 !important;
 }
