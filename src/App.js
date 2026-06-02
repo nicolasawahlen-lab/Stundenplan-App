@@ -147,6 +147,16 @@ function App() {
     return `${fach} (${fachZusatz.toLowerCase()})`;
   }, []);
 
+  const getBlockTextDensityClass = useCallback((block) => {
+    const subjectText = getSubjectDisplay(block);
+    const teacherText = getTeacherDisplay(block);
+    const longestTextLength = Math.max(subjectText.length, teacherText.length);
+
+    if (longestTextLength >= 22) return "text-density-tight";
+    if (longestTextLength >= 16) return "text-density-compact";
+    return "";
+  }, [getSubjectDisplay, getTeacherDisplay]);
+
   const normalizeBlock = useCallback(
     (b) => {
       const klasse = classes.includes(b.klasse) ? b.klasse : classes[0];
@@ -912,7 +922,7 @@ function App() {
         key={b.id}
         className={`block scheduled-block ${
           selectedBlock === b.id ? "selected" : ""
-        } ${teacherOverlap ? "teacher-overlap" : ""}`}
+        } ${teacherOverlap ? "teacher-overlap" : ""} ${getBlockTextDensityClass(b)}`}
         style={{
           backgroundColor: getColor(b),
           left: isSingleBlock ? "0%" : slot === 0 ? "0%" : "50%",
@@ -1049,7 +1059,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
           key={`${b.id}-${classDisplay}`}
           className={`block scheduled-block read-only-block ${
             teacherOverlap ? "teacher-overlap" : ""
-          } ${forceFullWidth ? "combined-teacher-block" : ""}`}
+          } ${forceFullWidth ? "combined-teacher-block" : ""} ${getBlockTextDensityClass(b)}`}
           style={{
             backgroundColor: getColor(b),
             left:
@@ -1244,7 +1254,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
     currentView,
   ]);
 
-  const cellWidth = compactView ? 78 * zoom : 100 * zoom;
+  const cellWidth = compactView ? 92 * zoom : 118 * zoom;
   const cellHeight = compactView ? 46 * zoom : 60 * zoom;
   const fontScale = compactView ? 0.9 : 1;
 
@@ -1589,7 +1599,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
                 key={b.id}
                 className={`block palette-block ${
                   selectedBlock === b.id ? "selected" : ""
-                }`}
+                } ${getBlockTextDensityClass(b)}`}
                 style={{ backgroundColor: getColor(b) }}
                 draggable
                 onClick={() => setSelectedBlock(b.id)}
