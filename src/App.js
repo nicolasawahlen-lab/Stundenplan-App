@@ -915,7 +915,6 @@ function App() {
     const slot = Number(b.parallelSlot) === 1 ? 1 : 0;
     const dauer = b.dauer || 1;
     const teacherOverlap = hasTeacherOverlap(b);
-    const durationLabel = getDurationLabel(dauer);
 
     return (
       <div
@@ -1046,7 +1045,6 @@ const getClassDisplayForTeacherSchedule = useCallback(
       const slot = Number(b.parallelSlot) === 1 ? 1 : 0;
       const dauer = b.dauer || 1;
       const teacherOverlap = hasTeacherOverlap(b);
-      const durationLabel = getDurationLabel(dauer);
 
       const classDisplay = isTeacherSchedule
         ? b._classDisplay || getClassDisplayForTeacherSchedule(b, title)
