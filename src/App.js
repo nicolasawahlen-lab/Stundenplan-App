@@ -912,7 +912,7 @@ function App() {
   const isSingleBlock = blocksStartingHere.length === 1;
 
   return blocksStartingHere.map((b) => {
-    const slot = b.parallelSlot === 1 ? 1 : 0;
+    const slot = Number(b.parallelSlot) === 1 ? 1 : 0;
     const dauer = b.dauer || 1;
     const teacherOverlap = hasTeacherOverlap(b);
     const durationLabel = getDurationLabel(dauer);
@@ -1043,7 +1043,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
     const isSingleBlock = blocksStartingHere.length === 1;
 
     return blocksStartingHere.map((b) => {
-      const slot = b.parallelSlot === 1 ? 1 : 0;
+      const slot = Number(b.parallelSlot) === 1 ? 1 : 0;
       const dauer = b.dauer || 1;
       const teacherOverlap = hasTeacherOverlap(b);
       const durationLabel = getDurationLabel(dauer);
