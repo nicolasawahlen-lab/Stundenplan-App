@@ -8,7 +8,8 @@ import React, {
 import "./App.css";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 
 const days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"];
 const classes = ["7. Klasse", "8. Klasse", "9. Klasse"];
@@ -944,74 +945,150 @@ function App() {
     document.body.removeChild(link);
   }, [blockData, getTeacherListFromBlock]);
 
-  const exportToExcel = useCallback(() => {
-    // Klassenpläne
+  const exportToExcel = useCallback(async () => {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "Stundenplan-App";
+    workbook.created = new Date();
+
+    const cleanSheetName = (name) => {
+      return String(name || "Plan")
+        .replace(/[\\/?*[]:]/g, "")
+        .substring(0, 31);
+    };
+
+    const hslToHex = (hsl) => {
+      const match = String(hsl || "").match(
+        /hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)/
+      );
+
+      if (!match) return "6B7280";
+
+      let h = Number(match[1]);
+      let s = Number(match[2]) / 100;
+      let l = Number(match[3]) / 100;
+
+      const c = (1 - Math.abs(2 * l - 1)) * s;
+      const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+      const m = l - c / 2;
+
+      let r = 0;
+      let g = 0;
+      let b = 0;
+
+      if (h >= 0 && h < 60) {
+        r = c;
+        g = x;
+      } else if (h >= 60 && h < 120) {
+        r = x;
+        g = c;
+      } else if (h >= 120 && h < 180) {
+        g = c;
+        b = x;
+      } else if (h >= 180 && h < 240) {
+        g = x;
+        b = c;
+      } else if (h >= 240 && h < 300) {
+        r = x;
+        b = c;
+      } else {
+        r = c;
+        b = x;
+      }
+
+      const toHex = (value) => {
+        const v = Math.round((value + m) * 255);
+        return v.toString(16).padStart(2, "0").toUpperCase();
+      };
+
+      return `${toHex(r)}${toHex(g)}${toHex(b)}`;
+    };
+
+    const addSheet = (name, rows, widths) => {
+      const sheet = workbook.addWorksheet(cleanSheetName(name));
+      const titleFill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: `FF${hslToHex("hsl(210, 50%, 65%)")}` },
+      };
+
+      rows.forEach((row) => sheet.addRow(row));
+      sheet.columns = rows[0].map((_, index) => ({
+        width: widths?.[index] || 20,
+      }));
+      sheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) {
+          row.eachCell((cell) => {
+            cell.font = { bold: true };
+            cell.fill = titleFill;
+          });
+        }
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: "middle", horizontal: "left", wrapText: true };
+        });
+      });
+      return sheet;
+    };
+
     const classSheets = {};
-    
     classes.forEach((klasse) => {
       const classBlocks = blockData.filter((b) => b.klasse === klasse);
       const data = [];
-      
-      // Header
-      data.push(["Klassenstundenplan: " + klasse]);
+      data.push([`Klassenstundenplan: ${klasse}`]);
       data.push([]);
       data.push(["Zeit", ...days]);
-      
-      // Jede Lektion
+
       times.forEach((time, timeIndex) => {
         const row = [time];
         days.forEach((day) => {
           const blocksInCell = classBlocks.filter(
             (b) => b.tag === day && b.lektion === timeIndex
           );
-          
           const cellContent = blocksInCell
-            .map((b) => `${b.fach}${b.fachZusatz ? ` (${b.fachZusatz})` : ""}\n${getTeacherDisplay(b)}`)
+            .map(
+              (b) =>
+                `${b.fach}${b.fachZusatz ? ` (${b.fachZusatz})` : ""}\n${getTeacherDisplay(
+                  b
+                )}`
+            )
             .join(" / ");
-          
           row.push(cellContent);
         });
         data.push(row);
       });
-      
+
       classSheets[klasse] = data;
     });
 
-    // Lehrerpläne
     const teacherSheets = {};
-    
     teachers.forEach((teacher) => {
       const teacherBlocks = blockData.filter((b) =>
         getTeacherListFromBlock(b).includes(teacher)
       );
       const data = [];
-      
-      // Header
-      data.push(["Lehrerstundenplan: " + teacher]);
+      data.push([`Lehrerstundenplan: ${teacher}`]);
       data.push([]);
       data.push(["Zeit", ...days]);
-      
-      // Jede Lektion
+
       times.forEach((time, timeIndex) => {
         const row = [time];
         days.forEach((day) => {
           const blocksInCell = teacherBlocks.filter(
             (b) => b.tag === day && b.lektion === timeIndex
           );
-          
           const cellContent = blocksInCell
-            .map((b) => `${b.fach}${b.fachZusatz ? ` (${b.fachZusatz})` : ""}\n${b.klasse}`)
+            .map(
+              (b) =>
+                `${b.fach}${b.fachZusatz ? ` (${b.fachZusatz})` : ""}\n${b.klasse}`
+            )
             .join(" / ");
-          
           row.push(cellContent);
         });
         data.push(row);
       });
-      
+
       teacherSheets[teacher] = data;
     });
 
-    // Statistik-Sheet
     const statsData = [
       ["Statistik"],
       [],
@@ -1030,27 +1107,43 @@ function App() {
       });
     });
 
-    // Workbook erstellen
-    const wb = XLSX.utils.book_new();
-    
     Object.entries(classSheets).forEach(([klasse, data]) => {
-      const ws = XLSX.utils.aoa_to_sheet(data);
-      ws["!cols"] = [{ wch: 12 }, ...Array(days.length).fill({ wch: 20 })];
-      XLSX.utils.book_append_sheet(wb, ws, klasse.substring(0, 20));
+      const worksheet = addSheet(klasse, data, [18, ...Array(days.length).fill(30)]);
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber > 3) {
+          row.eachCell((cell) => {
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: "FFFFFFFF" },
+            };
+          });
+        }
+      });
     });
 
     Object.entries(teacherSheets).forEach(([teacher, data]) => {
-      const sheetName = teacher.substring(0, 20);
-      const ws = XLSX.utils.aoa_to_sheet(data);
-      ws["!cols"] = [{ wch: 12 }, ...Array(days.length).fill({ wch: 20 })];
-      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      addSheet(teacher, data, [18, ...Array(days.length).fill(30)]);
     });
 
-    const wsStats = XLSX.utils.aoa_to_sheet(statsData);
-    wsStats["!cols"] = [{ wch: 20 }, { wch: 30 }, { wch: 15 }];
-    XLSX.utils.book_append_sheet(wb, wsStats, "Statistik");
+    const statsWorksheet = addSheet("Statistik", statsData, [30, 20, 15]);
+    statsWorksheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 3) {
+        row.eachCell((cell) => {
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFF8F8F8" },
+          };
+        });
+      }
+    });
 
-    XLSX.writeFile(wb, "stundenplan.xlsx");
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(blob, "stundenplan.xlsx");
   }, [blockData, getTeacherListFromBlock, getTeacherDisplay, statsByClassAndSubject, totalScheduledBlocks, totalLessons, teacherConflicts, teachers]);
 
   const exportToPDF = useCallback(async () => {
