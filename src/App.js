@@ -6,6 +6,9 @@ import React, {
   useMemo,
 } from "react";
 import "./App.css";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import * as XLSX from "xlsx";
 
 const days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"];
 const classes = ["7. Klasse", "8. Klasse", "9. Klasse"];
@@ -65,6 +68,13 @@ function App() {
   const [showStats, setShowStats] = useState(false);
   const [statsView, setStatsView] = useState("overview");
   const [currentView, setCurrentView] = useState(getViewFromHash());
+
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState("json");
+  const exportModalRef = useRef(null);
+  const scheduleContainerRef = useRef(null);
+  const classSchedulesRef = useRef(null);
+  const teacherSchedulesRef = useRef(null);
 
   const [showFormModal, setShowFormModal] = useState(false);
   const [formMode, setFormMode] = useState("create");
@@ -209,27 +219,6 @@ function App() {
       window.location.hash = "/lehrpersonen";
     }
   };
-
-  const exportData = useCallback(() => {
-    const data = JSON.stringify({ blockData, paletteBlocks }, null, 2);
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-
-    const fileName =
-      prompt("Dateiname für den Stundenplan:", "stundenplan.json") ||
-      "stundenplan.json";
-
-    const safeFileName = fileName.endsWith(".json")
-      ? fileName
-      : `${fileName}.json`;
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = safeFileName;
-    a.click();
-
-    URL.revokeObjectURL(url);
-  }, [blockData, paletteBlocks]);
 
   const importData = (e) => {
     const file = e.target.files[0];
@@ -902,6 +891,235 @@ function App() {
 
   const totalScheduledBlocks = blockData.length;
 
+  const exportToJSON = useCallback(() => {
+    const data = JSON.stringify({ blockData, paletteBlocks }, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const fileName = prompt("Dateiname für den Stundenplan:", "stundenplan.json") || "stundenplan.json";
+    const safeFileName = fileName.endsWith(".json") ? fileName : `${fileName}.json`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = safeFileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [blockData, paletteBlocks]);
+
+  const exportToCSV = useCallback(() => {
+    const rows = [];
+    
+    // Überschrift
+    rows.push(["Tag", "Zeit", "Klasse", "Fach", "Zusatz", "Lehrperson", "Dauer"]);
+    
+    // Daten für jeden Block
+    blockData
+      .sort((a, b) => {
+        const dayOrder = days.indexOf(a.tag) - days.indexOf(b.tag);
+        if (dayOrder !== 0) return dayOrder;
+        return (a.lektion || 0) - (b.lektion || 0);
+      })
+      .forEach((block) => {
+        const teacherList = getTeacherListFromBlock(block);
+        const time = times[block.lektion] || `Lektion ${(block.lektion || 0) + 1}`;
+        const durationLabel = getDurationLabel(block.dauer);
+        
+        rows.push([
+          block.tag || "-",
+          time,
+          block.klasse || "-",
+          block.fach || "-",
+          block.fachZusatz || "-",
+          teacherList.join(", ") || "-",
+          durationLabel || block.dauer || 1,
+        ]);
+      });
+
+    // CSV generieren
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "stundenplan.csv");
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [blockData, getTeacherListFromBlock, getDurationLabel]);
+
+  const exportToExcel = useCallback(() => {
+    // Klassenpläne
+    const classSheets = {};
+    
+    classes.forEach((klasse) => {
+      const classBlocks = blockData.filter((b) => b.klasse === klasse);
+      const data = [];
+      
+      // Header
+      data.push(["Klassenstundenplan: " + klasse]);
+      data.push([]);
+      data.push(["Zeit", ...days]);
+      
+      // Jede Lektion
+      times.forEach((time, timeIndex) => {
+        const row = [time];
+        days.forEach((day) => {
+          const blocksInCell = classBlocks.filter(
+            (b) => b.tag === day && b.lektion === timeIndex
+          );
+          
+          const cellContent = blocksInCell
+            .map((b) => `${b.fach}${b.fachZusatz ? ` (${b.fachZusatz})` : ""}\n${getTeacherDisplay(b)}`)
+            .join(" / ");
+          
+          row.push(cellContent);
+        });
+        data.push(row);
+      });
+      
+      classSheets[klasse] = data;
+    });
+
+    // Lehrerpläne
+    const teacherSheets = {};
+    
+    teachers.forEach((teacher) => {
+      const teacherBlocks = blockData.filter((b) =>
+        getTeacherListFromBlock(b).includes(teacher)
+      );
+      const data = [];
+      
+      // Header
+      data.push(["Lehrerstundenplan: " + teacher]);
+      data.push([]);
+      data.push(["Zeit", ...days]);
+      
+      // Jede Lektion
+      times.forEach((time, timeIndex) => {
+        const row = [time];
+        days.forEach((day) => {
+          const blocksInCell = teacherBlocks.filter(
+            (b) => b.tag === day && b.lektion === timeIndex
+          );
+          
+          const cellContent = blocksInCell
+            .map((b) => `${b.fach}${b.fachZusatz ? ` (${b.fachZusatz})` : ""}\n${b.klasse}`)
+            .join(" / ");
+          
+          row.push(cellContent);
+        });
+        data.push(row);
+      });
+      
+      teacherSheets[teacher] = data;
+    });
+
+    // Statistik-Sheet
+    const statsData = [
+      ["Statistik"],
+      [],
+      ["Kategorie", "Wert"],
+      ["Gesetzte Blöcke", totalScheduledBlocks],
+      ["Geplante Lektionen", totalLessons],
+      ["LP-Überschneidungen", teacherConflicts.length],
+      [],
+      ["Nach Klasse und Fach"],
+      ["Klasse", "Fach", "Lektionen"],
+    ];
+
+    Object.entries(statsByClassAndSubject).forEach(([klasse, subjects]) => {
+      Object.entries(subjects).forEach(([fach, count]) => {
+        statsData.push([klasse, fach, count]);
+      });
+    });
+
+    // Workbook erstellen
+    const wb = XLSX.utils.book_new();
+    
+    Object.entries(classSheets).forEach(([klasse, data]) => {
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      ws["!cols"] = [{ wch: 12 }, ...Array(days.length).fill({ wch: 20 })];
+      XLSX.utils.book_append_sheet(wb, ws, klasse.substring(0, 20));
+    });
+
+    Object.entries(teacherSheets).forEach(([teacher, data]) => {
+      const sheetName = teacher.substring(0, 20);
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      ws["!cols"] = [{ wch: 12 }, ...Array(days.length).fill({ wch: 20 })];
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    });
+
+    const wsStats = XLSX.utils.aoa_to_sheet(statsData);
+    wsStats["!cols"] = [{ wch: 20 }, { wch: 30 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(wb, wsStats, "Statistik");
+
+    XLSX.writeFile(wb, "stundenplan.xlsx");
+  }, [blockData, paletteBlocks, classes, teachers, days, times, getTeacherListFromBlock, getTeacherDisplay, statsByClassAndSubject, totalScheduledBlocks, totalLessons, teacherConflicts]);
+
+  const exportToPDF = useCallback(async () => {
+    try {
+      const element = scheduleContainerRef.current;
+      if (!element) return;
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const ratio = canvas.width / canvas.height;
+
+      let width = pdfWidth - 10;
+      let height = width / ratio;
+
+      if (height > pdfHeight - 10) {
+        height = pdfHeight - 10;
+        width = height * ratio;
+      }
+
+      const x = (pdfWidth - width) / 2;
+      const y = (pdfHeight - height) / 2;
+
+      pdf.addImage(imgData, "PNG", x, y, width, height);
+      pdf.save("stundenplan.pdf");
+    } catch (error) {
+      console.error("PDF Export fehlgeschlagen:", error);
+      alert("PDF Export fehlgeschlagen!");
+    }
+  }, []);
+
+  const handleExport = () => {
+    switch (exportFormat) {
+      case "json":
+        exportToJSON();
+        break;
+      case "csv":
+        exportToCSV();
+        break;
+      case "excel":
+        exportToExcel();
+        break;
+      case "pdf":
+        exportToPDF();
+        break;
+      default:
+        break;
+    }
+    setShowExportModal(false);
+  };
+
+
+
   const renderBlocksInCell = (day, klasse, rowIndex) => {
   const blocksStartingHere = blockData
     .filter(
@@ -1170,7 +1388,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
 
       if (ctrl && e.key === "s") {
         e.preventDefault();
-        exportData();
+        setShowExportModal(true);
       }
 
       if (ctrl && e.key === "o") {
@@ -1180,7 +1398,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
 
       if (ctrl && e.key.toLowerCase() === "p") {
         e.preventDefault();
-        window.print();
+        setShowExportModal(true);
       }
 
       if (
@@ -1246,8 +1464,6 @@ const getClassDisplayForTeacherSchedule = useCallback(
     selectedBlock,
     clipboard,
     blockData,
-    paletteBlocks,
-    exportData,
     showFormModal,
     currentView,
   ]);
@@ -1357,7 +1573,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
         </button>
         <button onClick={() => navigateTo("klassen")}>Klassenpläne</button>
         <button onClick={() => navigateTo("lehrpersonen")}>LP-Pläne</button>
-        <button onClick={exportData}>Speichern / Exportieren</button>
+        <button onClick={() => setShowExportModal(true)}>Speichern / Exportieren</button>
         <button onClick={() => fileInputRef.current?.click()}>
           Importieren
         </button>
@@ -1527,7 +1743,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
         </div>
       )}
 
-      <div className="plan-wrapper">
+      <div className="plan-wrapper" ref={scheduleContainerRef}>
         <div className="grid">
           <div></div>
 
@@ -1627,6 +1843,73 @@ const getClassDisplayForTeacherSchedule = useCallback(
           als Vorratsblock abzulegen.
         </div>
       </div>
+
+      {showExportModal && (
+        <div className="modal-overlay no-print" onClick={() => setShowExportModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Stundenplan exportieren</h2>
+              <button className="modal-close-button" onClick={() => setShowExportModal(false)}>
+                ×
+              </button>
+            </div>
+
+            <div className="export-modal-content">
+              <div className="export-format-section">
+                <label className="form-field">
+                  <span>Exportformat auswählen:</span>
+                  <select
+                    value={exportFormat}
+                    onChange={(e) => setExportFormat(e.target.value)}
+                  >
+                    <option value="json">JSON (Datenbankformat - zum Importieren)</option>
+                    <option value="csv">CSV-Tabelle (für Excel, Sheets, etc.)</option>
+                    <option value="excel">Excel-Datei (formatierte Tabellen mit mehreren Blättern)</option>
+                    <option value="pdf">PDF (Druckbares Format)</option>
+                  </select>
+                </label>
+
+                <div className="export-format-info">
+                  {exportFormat === "json" && (
+                    <p>
+                      📋 <strong>JSON-Format:</strong> Speichert alle Daten zum Importieren.
+                      Verwende dies um den Stundenplan zu sichern und später wieder zu laden.
+                    </p>
+                  )}
+                  {exportFormat === "csv" && (
+                    <p>
+                      📊 <strong>CSV-Format:</strong> Einfache Tabelle mit allen Einträgen.
+                      Kannst du in Excel, Google Sheets oder anderen Programmen öffnen.
+                    </p>
+                  )}
+                  {exportFormat === "excel" && (
+                    <p>
+                      📈 <strong>Excel-Format:</strong> Professionelle Formatierung mit separaten Blättern
+                      für jede Klasse, jede Lehrperson und eine Statistik-Übersicht.
+                    </p>
+                  )}
+                  {exportFormat === "pdf" && (
+                    <p>
+                      🖨️ <strong>PDF-Format:</strong> Druckbares Format. Zeigt den aktuellen Stundenplan
+                      so wie auf dem Bildschirm.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" onClick={() => setShowExportModal(false)}>
+                  Abbrechen
+                </button>
+                <button type="button" className="primary-button" onClick={handleExport}>
+                  {exportFormat === "pdf" ? "Zu PDF exportieren" : "Herunterladen"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {showFormModal && (
         <div className="modal-overlay no-print" onClick={closeFormModal}>
