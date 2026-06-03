@@ -71,10 +71,7 @@ function App() {
 
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportFormat, setExportFormat] = useState("json");
-  const exportModalRef = useRef(null);
   const scheduleContainerRef = useRef(null);
-  const classSchedulesRef = useRef(null);
-  const teacherSchedulesRef = useRef(null);
 
   const [showFormModal, setShowFormModal] = useState(false);
   const [formMode, setFormMode] = useState("create");
@@ -945,7 +942,7 @@ function App() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }, [blockData, getTeacherListFromBlock, getDurationLabel]);
+  }, [blockData, getTeacherListFromBlock]);
 
   const exportToExcel = useCallback(() => {
     // Klassenpläne
@@ -1054,7 +1051,7 @@ function App() {
     XLSX.utils.book_append_sheet(wb, wsStats, "Statistik");
 
     XLSX.writeFile(wb, "stundenplan.xlsx");
-  }, [blockData, paletteBlocks, classes, teachers, days, times, getTeacherListFromBlock, getTeacherDisplay, statsByClassAndSubject, totalScheduledBlocks, totalLessons, teacherConflicts]);
+  }, [blockData, getTeacherListFromBlock, getTeacherDisplay, statsByClassAndSubject, totalScheduledBlocks, totalLessons, teacherConflicts, teachers]);
 
   const exportToPDF = useCallback(async () => {
     try {
@@ -1464,6 +1461,7 @@ const getClassDisplayForTeacherSchedule = useCallback(
     selectedBlock,
     clipboard,
     blockData,
+    paletteBlocks,
     showFormModal,
     currentView,
   ]);
