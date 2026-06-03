@@ -152,8 +152,8 @@ function App() {
     const teacherText = getTeacherDisplay(block);
     const longestTextLength = Math.max(subjectText.length, teacherText.length);
 
-    if (longestTextLength >= 22) return "text-density-tight";
-    if (longestTextLength >= 16) return "text-density-compact";
+    if (longestTextLength >= 18) return "text-density-tight";
+    if (longestTextLength >= 13) return "text-density-compact";
     return "";
   }, [getSubjectDisplay, getTeacherDisplay]);
 

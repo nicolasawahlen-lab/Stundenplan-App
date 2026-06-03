@@ -226,9 +226,8 @@ select {
 .fach,
 .klasse,
 .lehrer {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .text-density-compact .fach {
@@ -554,9 +553,8 @@ select {
 .summary-view .read-only-block .fach,
 .summary-view .read-only-block .klasse,
 .summary-view .read-only-block .lehrer {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .read-only-block {
