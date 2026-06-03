@@ -1003,27 +1003,70 @@ function App() {
       return `${toHex(r)}${toHex(g)}${toHex(b)}`;
     };
 
-    const addSheet = (name, rows, widths) => {
+    const addSheet = (name, rows, widths, fillMatrix) => {
       const sheet = workbook.addWorksheet(cleanSheetName(name));
       const titleFill = {
         type: "pattern",
         pattern: "solid",
         fgColor: { argb: `FF${hslToHex("hsl(210, 50%, 65%)")}` },
       };
+      const headerFill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFD9E1F2" },
+      };
+      const borderStyle = {
+        top: { style: "thin", color: { argb: "FFCCCCCC" } },
+        left: { style: "thin", color: { argb: "FFCCCCCC" } },
+        bottom: { style: "thin", color: { argb: "FFCCCCCC" } },
+        right: { style: "thin", color: { argb: "FFCCCCCC" } },
+      };
 
-      rows.forEach((row) => sheet.addRow(row));
-      sheet.columns = rows[0].map((_, index) => ({
-        width: widths?.[index] || 20,
+      const maxColumns = Math.max(...rows.map((row) => row.length));
+      rows.forEach((row) => {
+        const padded = [...row];
+        while (padded.length < maxColumns) padded.push("");
+        sheet.addRow(padded);
+      });
+
+      sheet.columns = Array.from({ length: maxColumns }, (_, index) => ({
+        width: widths?.[index] || 24,
       }));
+      sheet.properties.defaultRowHeight = 20;
+      sheet.views = [{ state: "frozen", ySplit: 3 }];
+
       sheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) {
-          row.eachCell((cell) => {
-            cell.font = { bold: true };
-            cell.fill = titleFill;
-          });
+          sheet.mergeCells(1, 1, 1, maxColumns);
+          row.height = 28;
         }
+
         row.eachCell((cell) => {
           cell.alignment = { vertical: "middle", horizontal: "left", wrapText: true };
+          cell.border = borderStyle;
+          const fillColor = fillMatrix?.[rowNumber - 1]?.[cell.col - 1];
+          if (fillColor && rowNumber > 3) {
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: `FF${fillColor}` },
+            };
+          }
+          if (rowNumber === 1) {
+            cell.font = { bold: true, size: 14 };
+            cell.fill = titleFill;
+          }
+          if (rowNumber === 3) {
+            cell.font = { bold: true };
+            cell.fill = headerFill;
+          }
+          if (rowNumber > 3 && rowNumber % 2 === 0 && !fillColor) {
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: "FFF7F9FC" },
+            };
+          }
         });
       });
       return sheet;
@@ -1033,12 +1076,17 @@ function App() {
     classes.forEach((klasse) => {
       const classBlocks = blockData.filter((b) => b.klasse === klasse);
       const data = [];
+      const fillMatrix = [];
       data.push([`Klassenstundenplan: ${klasse}`]);
+      fillMatrix.push(Array(days.length + 1).fill(null));
       data.push([]);
+      fillMatrix.push(Array(days.length + 1).fill(null));
       data.push(["Zeit", ...days]);
+      fillMatrix.push(Array(days.length + 1).fill(null));
 
       times.forEach((time, timeIndex) => {
         const row = [time];
+        const rowFill = [null];
         days.forEach((day) => {
           const blocksInCell = classBlocks.filter(
             (b) => b.tag === day && b.lektion === timeIndex
@@ -1052,11 +1100,15 @@ function App() {
             )
             .join(" / ");
           row.push(cellContent);
+          rowFill.push(
+            blocksInCell[0] ? hslToHex(getColor(blocksInCell[0])) : null
+          );
         });
         data.push(row);
+        fillMatrix.push(rowFill);
       });
 
-      classSheets[klasse] = data;
+      classSheets[klasse] = { data, fillMatrix };
     });
 
     const teacherSheets = {};
@@ -1065,12 +1117,17 @@ function App() {
         getTeacherListFromBlock(b).includes(teacher)
       );
       const data = [];
+      const fillMatrix = [];
       data.push([`Lehrerstundenplan: ${teacher}`]);
+      fillMatrix.push(Array(days.length + 1).fill(null));
       data.push([]);
+      fillMatrix.push(Array(days.length + 1).fill(null));
       data.push(["Zeit", ...days]);
+      fillMatrix.push(Array(days.length + 1).fill(null));
 
       times.forEach((time, timeIndex) => {
         const row = [time];
+        const rowFill = [null];
         days.forEach((day) => {
           const blocksInCell = teacherBlocks.filter(
             (b) => b.tag === day && b.lektion === timeIndex
@@ -1082,11 +1139,15 @@ function App() {
             )
             .join(" / ");
           row.push(cellContent);
+          rowFill.push(
+            blocksInCell[0] ? hslToHex(getColor(blocksInCell[0])) : null
+          );
         });
         data.push(row);
+        fillMatrix.push(rowFill);
       });
 
-      teacherSheets[teacher] = data;
+      teacherSheets[teacher] = { data, fillMatrix };
     });
 
     const statsData = [
@@ -1107,23 +1168,35 @@ function App() {
       });
     });
 
-    Object.entries(classSheets).forEach(([klasse, data]) => {
-      const worksheet = addSheet(klasse, data, [18, ...Array(days.length).fill(30)]);
+    Object.entries(classSheets).forEach(([klasse, sheetData]) => {
+      const worksheet = addSheet(
+        klasse,
+        sheetData.data,
+        [18, ...Array(days.length).fill(30)],
+        sheetData.fillMatrix
+      );
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber > 3) {
           row.eachCell((cell) => {
-            cell.fill = {
-              type: "pattern",
-              pattern: "solid",
-              fgColor: { argb: "FFFFFFFF" },
-            };
+            if (!cell.fill) {
+              cell.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: "FFFFFFFF" },
+              };
+            }
           });
         }
       });
     });
 
-    Object.entries(teacherSheets).forEach(([teacher, data]) => {
-      addSheet(teacher, data, [18, ...Array(days.length).fill(30)]);
+    Object.entries(teacherSheets).forEach(([teacher, sheetData]) => {
+      addSheet(
+        teacher,
+        sheetData.data,
+        [18, ...Array(days.length).fill(30)],
+        sheetData.fillMatrix
+      );
     });
 
     const statsWorksheet = addSheet("Statistik", statsData, [30, 20, 15]);
@@ -1144,7 +1217,7 @@ function App() {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
     saveAs(blob, "stundenplan.xlsx");
-  }, [blockData, getTeacherListFromBlock, getTeacherDisplay, statsByClassAndSubject, totalScheduledBlocks, totalLessons, teacherConflicts, teachers]);
+  }, [blockData, getColor, getTeacherListFromBlock, getTeacherDisplay, statsByClassAndSubject, totalScheduledBlocks, totalLessons, teacherConflicts, teachers]);
 
   const exportToPDF = useCallback(async () => {
     try {
