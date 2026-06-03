@@ -902,6 +902,35 @@ function App() {
     URL.revokeObjectURL(url);
   }, [blockData, paletteBlocks]);
 
+  const getClassDisplayForTeacherSchedule = useCallback(
+    (block, currentTeacher) => {
+      if (!block?.allowTeacherConflict || !currentTeacher) {
+        return block.klasse;
+      }
+
+      const matchingBlocks = blockData.filter((other) => {
+        if (!other.allowTeacherConflict) return false;
+        if (other.tag !== block.tag) return false;
+        if (other.lektion !== block.lektion) return false;
+        if ((other.dauer || 1) !== (block.dauer || 1)) return false;
+        if (String(other.fach || "").trim() !== String(block.fach || "").trim()) return false;
+
+        return getTeacherListFromBlock(other).includes(currentTeacher);
+      });
+
+      const numbers = [...new Set(
+        matchingBlocks
+          .map((b) => Number(String(b.klasse || "").match(/\d+/)?.[0]))
+          .filter(Number.isFinite)
+      )].sort((a, b) => a - b);
+
+      if (numbers.length <= 1) return block.klasse;
+
+      return `${numbers[0]}. - ${numbers[numbers.length - 1]}. Klasse`;
+    },
+    [blockData, getTeacherListFromBlock]
+  );
+
   const exportToCSV = useCallback(() => {
     const rows = [];
     
@@ -1032,17 +1061,17 @@ function App() {
       sheet.columns = Array.from({ length: maxColumns }, (_, index) => ({
         width: widths?.[index] || 24,
       }));
-      sheet.properties.defaultRowHeight = 20;
-      sheet.views = [{ state: "frozen", ySplit: 3 }];
+      sheet.properties.defaultRowHeight = 26;
+      sheet.views = [{ state: "frozen", ySplit: 4 }];
 
       sheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) {
           sheet.mergeCells(1, 1, 1, maxColumns);
-          row.height = 28;
+          row.height = 34;
         }
 
         row.eachCell((cell) => {
-          cell.alignment = { vertical: "middle", horizontal: "left", wrapText: true };
+          cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
           cell.border = borderStyle;
           const fillColor = fillMatrix?.[rowNumber - 1]?.[cell.col - 1];
           if (fillColor && rowNumber > 3) {
@@ -1053,12 +1082,13 @@ function App() {
             };
           }
           if (rowNumber === 1) {
-            cell.font = { bold: true, size: 14 };
+            cell.font = { bold: true, size: 16 };
             cell.fill = titleFill;
-          }
-          if (rowNumber === 3) {
-            cell.font = { bold: true };
+          } else if (rowNumber === 3) {
+            cell.font = { bold: true, size: 12 };
             cell.fill = headerFill;
+          } else {
+            cell.font = { size: 11 };
           }
           if (rowNumber > 3 && rowNumber % 2 === 0 && !fillColor) {
             cell.fill = {
@@ -1092,17 +1122,16 @@ function App() {
             (b) => b.tag === day && b.lektion === timeIndex
           );
           const cellContent = blocksInCell
-            .map(
-              (b) =>
-                `${b.fach}${b.fachZusatz ? ` (${b.fachZusatz})` : ""}\n${getTeacherDisplay(
-                  b
-                )}`
+            .map((b) =>
+              `${b.fach}${b.fachZusatz ? ` (${b.fachZusatz})` : ""}\n${getTeacherDisplay(
+                b
+              )}`
             )
             .join(" / ");
+
           row.push(cellContent);
-          rowFill.push(
-            blocksInCell[0] ? hslToHex(getColor(blocksInCell[0])) : null
-          );
+          const isPause = timeIndex === 5 || timeIndex === 6;
+          rowFill.push(isPause ? "F3F3F3" : (blocksInCell[0] ? hslToHex(getColor(blocksInCell[0])) : null));
         });
         data.push(row);
         fillMatrix.push(rowFill);
@@ -1113,9 +1142,27 @@ function App() {
 
     const teacherSheets = {};
     teachers.forEach((teacher) => {
-      const teacherBlocks = blockData.filter((b) =>
+      // collect raw blocks for this teacher
+      const rawBlocks = blockData.filter((b) =>
         getTeacherListFromBlock(b).includes(teacher)
       );
+
+      // group allowTeacherConflict blocks into combined entries similar to UI
+      const groups = new Map();
+      rawBlocks.forEach((b) => {
+        if (!b.allowTeacherConflict) {
+          groups.set(b.id, { ...b, _classDisplay: b.klasse, _forceFullWidth: false });
+          return;
+        }
+
+        const key = [b.tag, b.lektion, b.dauer || 1, String(b.fach || "").trim(), String(b.fachZusatz || "").trim()].join("|");
+        if (!groups.has(key)) {
+          groups.set(key, { ...b, id: `group-${key}`, _classDisplay: getClassDisplayForTeacherSchedule(b, teacher), _forceFullWidth: true });
+        }
+      });
+
+      const teacherBlocks = Array.from(groups.values());
+
       const data = [];
       const fillMatrix = [];
       data.push([`Lehrerstundenplan: ${teacher}`]);
@@ -1132,22 +1179,21 @@ function App() {
           const blocksInCell = teacherBlocks.filter(
             (b) => b.tag === day && b.lektion === timeIndex
           );
+
           const cellContent = blocksInCell
-            .map(
-              (b) =>
-                `${b.fach}${b.fachZusatz ? ` (${b.fachZusatz})` : ""}\n${b.klasse}`
+            .map((b) =>
+              `${b.fach}${b.fachZusatz ? ` (${b.fachZusatz})` : ""}\n${b._classDisplay || b.klasse}`
             )
             .join(" / ");
+
           row.push(cellContent);
-          rowFill.push(
-            blocksInCell[0] ? hslToHex(getColor(blocksInCell[0])) : null
-          );
+          rowFill.push(blocksInCell[0] ? hslToHex(getColor(blocksInCell[0])) : null);
         });
         data.push(row);
         fillMatrix.push(rowFill);
       });
 
-      teacherSheets[teacher] = { data, fillMatrix };
+      teacherSheets[teacher] = { data, fillMatrix, blocks: teacherBlocks };
     });
 
     const statsData = [
@@ -1175,8 +1221,28 @@ function App() {
         [18, ...Array(days.length).fill(30)],
         sheetData.fillMatrix
       );
+
+      // Build mapping: first data row index where times start
+      const headerRows = 4; // title, blank, day header, slot header
+      const dataStartRow = headerRows + 1; // 5
+
+      // Merge day headers (each day spans 2 subcolumns)
+      for (let i = 0; i < days.length; i++) {
+        const colStart = 2 + i * 2;
+        const colEnd = colStart + 1;
+        try {
+          worksheet.mergeCells(3, colStart, 3, colEnd);
+        } catch (e) {
+          // ignore merge errors
+        }
+        const mergedCell = worksheet.getCell(3, colStart);
+        mergedCell.alignment = { horizontal: "center", vertical: "middle" };
+        mergedCell.font = { bold: true };
+      }
+
+      // Fill defaults where no color applied
       worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber > 3) {
+        if (rowNumber >= dataStartRow) {
           row.eachCell((cell) => {
             if (!cell.fill) {
               cell.fill = {
@@ -1188,15 +1254,159 @@ function App() {
           });
         }
       });
+
+      // Merge vertically for multi-lesson blocks and horizontally for single full-width blocks
+      const classBlocks = blockData.filter((b) => b.klasse === klasse && b.tag != null && b.lektion != null);
+      const processed = new Set();
+
+      classBlocks.forEach((block) => {
+        if (processed.has(block.id)) return;
+        const dayIndex = days.indexOf(block.tag);
+        if (dayIndex < 0) return;
+
+        const startRow = dataStartRow + Number(block.lektion || 0);
+        const endRow = startRow + (Number(block.dauer || 1) - 1);
+        const colA = 2 + dayIndex * 2;
+        const colB = colA + 1;
+
+        // all blocks that start at the same cell (same day & lektion)
+        const sameCellBlocks = classBlocks.filter(
+          (b) => b.tag === block.tag && Number(b.lektion || 0) === Number(block.lektion || 0)
+        );
+
+        if (sameCellBlocks.length === 1) {
+          // occupy full width (merge both subcolumns)
+          try {
+            worksheet.mergeCells(startRow, colA, endRow, colB);
+          } catch (e) {}
+
+          const cell = worksheet.getCell(startRow, colA);
+          cell.value = `${block.fach}${block.fachZusatz ? ` (${block.fachZusatz})` : ""}\n${getTeacherDisplay(block)}`;
+          cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+          cell.font = { bold: true };
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: `FF${hslToHex(getColor(block))}` },
+          };
+          processed.add(block.id);
+        } else {
+          // multiple parallel blocks -> occupy subcolumns
+          sameCellBlocks.forEach((b) => {
+            if (processed.has(b.id)) return;
+            const slot = Number(b.parallelSlot) === 1 ? 1 : 0;
+            const col = slot === 0 ? colA : colB;
+            if (endRow > startRow) {
+              try {
+                worksheet.mergeCells(startRow, col, endRow, col);
+              } catch (e) {}
+            }
+            const cell = worksheet.getCell(startRow, col);
+            cell.value = `${b.fach}${b.fachZusatz ? ` (${b.fachZusatz})` : ""}\n${getTeacherDisplay(b)}`;
+            cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+            cell.font = { bold: true };
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: `FF${hslToHex(getColor(b))}` },
+            };
+            processed.add(b.id);
+          });
+        }
+      });
     });
 
     Object.entries(teacherSheets).forEach(([teacher, sheetData]) => {
-      addSheet(
+      const worksheet = addSheet(
         teacher,
         sheetData.data,
         [18, ...Array(days.length).fill(30)],
         sheetData.fillMatrix
       );
+
+      const headerRows = 4;
+      const dataStartRow = headerRows + 1;
+
+      for (let i = 0; i < days.length; i++) {
+        const colStart = 2 + i * 2;
+        const colEnd = colStart + 1;
+        try {
+          worksheet.mergeCells(3, colStart, 3, colEnd);
+        } catch (e) {}
+        const mergedCell = worksheet.getCell(3, colStart);
+        mergedCell.alignment = { horizontal: "center", vertical: "middle" };
+        mergedCell.font = { bold: true };
+      }
+
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber >= dataStartRow) {
+          row.eachCell((cell) => {
+            if (!cell.fill) {
+              cell.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: "FFFFFFFF" },
+              };
+            }
+          });
+        }
+      });
+
+      const teacherBlocks = sheetData.blocks || [];
+      const processed = new Set();
+
+      teacherBlocks.forEach((block) => {
+        if (processed.has(block.id)) return;
+        const dayIndex = days.indexOf(block.tag);
+        if (dayIndex < 0) return;
+
+        const startRow = dataStartRow + Number(block.lektion || 0);
+        const endRow = startRow + (Number(block.dauer || 1) - 1);
+        const colA = 2 + dayIndex * 2;
+        const colB = colA + 1;
+
+        const sameCellBlocks = teacherBlocks.filter(
+          (b) => b.tag === block.tag && Number(b.lektion || 0) === Number(block.lektion || 0)
+        );
+
+        if (sameCellBlocks.length === 1) {
+          try {
+            worksheet.mergeCells(startRow, colA, endRow, colB);
+          } catch (e) {}
+
+          const cell = worksheet.getCell(startRow, colA);
+          cell.value = `${block.fach}${block.fachZusatz ? ` (${block.fachZusatz})` : ""}\n${block.klasse}`;
+          cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+          cell.font = { bold: true };
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: `FF${hslToHex(getColor(block))}` },
+          };
+          processed.add(block.id);
+        } else {
+          sameCellBlocks.forEach((b) => {
+            if (processed.has(b.id)) return;
+            const slot = Number(b.parallelSlot) === 1 ? 1 : 0;
+            const col = slot === 0 ? colA : colB;
+            if (endRow > startRow) {
+              try {
+                worksheet.mergeCells(startRow, col, endRow, col);
+              } catch (e) {}
+            }
+            const cell = worksheet.getCell(startRow, col);
+            cell.value = `${b.fach}${b.fachZusatz ? ` (${b.fachZusatz})` : ""}\n${b.klasse}`;
+            cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+            cell.font = { bold: true };
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: `FF${hslToHex(getColor(b))}` },
+            };
+            processed.add(b.id);
+          });
+        }
+      });
     });
 
     const statsWorksheet = addSheet("Statistik", statsData, [30, 20, 15]);
@@ -1216,14 +1426,23 @@ function App() {
     const blob = new Blob([buffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
-    saveAs(blob, "stundenplan.xlsx");
-  }, [blockData, getColor, getTeacherListFromBlock, getTeacherDisplay, statsByClassAndSubject, totalScheduledBlocks, totalLessons, teacherConflicts, teachers]);
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const fileName = `stundenplan_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.xlsx`;
+    saveAs(blob, fileName);
+  }, [blockData, getColor, getTeacherListFromBlock, getTeacherDisplay, statsByClassAndSubject, totalScheduledBlocks, totalLessons, teacherConflicts, teachers, getClassDisplayForTeacherSchedule]);
 
   const exportToPDF = useCallback(async () => {
-    try {
-      const element = scheduleContainerRef.current;
-      if (!element) return;
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+    const makeTimestamp = () => {
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
+    };
+
+    const elementToPdf = async (element, fileBaseName, opts = {}) => {
+      if (!element) return;
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
@@ -1231,35 +1450,91 @@ function App() {
         backgroundColor: "#ffffff",
       });
 
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: "a4",
-      });
+      const imgW = canvas.width;
+      const imgH = canvas.height;
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const ratio = canvas.width / canvas.height;
+      const pdf = new jsPDF({ orientation: opts.orientation || "landscape", unit: "mm", format: "a4" });
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = pdf.internal.pageSize.getHeight();
 
-      let width = pdfWidth - 10;
-      let height = width / ratio;
+      const pxPerMm = imgW / (pdfW * (window.devicePixelRatio || 1));
 
-      if (height > pdfHeight - 10) {
-        height = pdfHeight - 10;
-        width = height * ratio;
+      // height in px that fits one PDF page
+      const sliceH = Math.floor(pdfH * pxPerMm);
+      let y = 0;
+      let page = 0;
+
+      while (y < imgH) {
+        const h = Math.min(sliceH, imgH - y);
+        const tmpCanvas = document.createElement("canvas");
+        tmpCanvas.width = imgW;
+        tmpCanvas.height = h;
+        const ctx = tmpCanvas.getContext("2d");
+        ctx.drawImage(canvas, 0, y, imgW, h, 0, 0, imgW, h);
+        const imgData = tmpCanvas.toDataURL("image/png");
+
+        const ratio = imgW / (pdfW);
+        const hInMm = h / ratio;
+
+        const x = 0;
+        const yPos = 0;
+
+        if (page > 0) pdf.addPage();
+        pdf.addImage(imgData, "PNG", x, yPos, pdfW, hInMm);
+
+        y += h;
+        page += 1;
       }
 
-      const x = (pdfWidth - width) / 2;
-      const y = (pdfHeight - height) / 2;
+      const fileName = `${fileBaseName}_${makeTimestamp()}.pdf`;
+      pdf.save(fileName);
+    };
 
-      pdf.addImage(imgData, "PNG", x, y, width, height);
-      pdf.save("stundenplan.pdf");
+    try {
+      const choice = prompt("Welche PDF exportieren? (gesamt / klassen / lehrpersonen)", "gesamt");
+      if (!choice) return;
+
+      const lower = String(choice || "").toLowerCase().trim();
+      const prevView = currentView;
+
+      if (lower === "gesamt" || lower === "gesamtstundenplan" || lower === "full") {
+        const element = scheduleContainerRef.current;
+        if (!element) return;
+        await elementToPdf(element, "stundenplan_gesamt", { orientation: "landscape" });
+        return;
+      }
+
+      if (lower === "klassen" || lower === "classes") {
+        // render class view temporarily
+        setCurrentView("klassen");
+        await sleep(350);
+        const blocks = document.querySelectorAll(".single-schedule-print-block");
+        for (const el of blocks) {
+          const title = el.querySelector("h2")?.textContent?.trim() || "klasse";
+          const safe = title.replace(/[^a-z0-9_-]/gi, "_");
+          await elementToPdf(el, `stundenplan_klasse_${safe}`, { orientation: "landscape" });
+        }
+        setCurrentView(prevView);
+        return;
+      }
+
+      if (lower === "lehrpersonen" || lower === "lehrer" || lower === "teachers") {
+        setCurrentView("lehrpersonen");
+        await sleep(350);
+        const blocks = document.querySelectorAll(".single-schedule-print-block");
+        for (const el of blocks) {
+          const title = el.querySelector("h2")?.textContent?.trim() || "lehrer";
+          const safe = title.replace(/[^a-z0-9_-]/gi, "_");
+          await elementToPdf(el, `stundenplan_lehrer_${safe}`, { orientation: "landscape" });
+        }
+        setCurrentView(prevView);
+        return;
+      }
     } catch (error) {
       console.error("PDF Export fehlgeschlagen:", error);
       alert("PDF Export fehlgeschlagen!");
     }
-  }, []);
+  }, [currentView]);
 
   const handleExport = () => {
     switch (exportFormat) {
@@ -1347,34 +1622,7 @@ function App() {
     );
   });
 };
-const getClassDisplayForTeacherSchedule = useCallback(
-  (block, currentTeacher) => {
-    if (!block?.allowTeacherConflict || !currentTeacher) {
-      return block.klasse;
-    }
 
-    const matchingBlocks = blockData.filter((other) => {
-      if (!other.allowTeacherConflict) return false;
-      if (other.tag !== block.tag) return false;
-      if (other.lektion !== block.lektion) return false;
-      if ((other.dauer || 1) !== (block.dauer || 1)) return false;
-      if (String(other.fach || "").trim() !== String(block.fach || "").trim()) return false;
-
-      return getTeacherListFromBlock(other).includes(currentTeacher);
-    });
-
-    const numbers = [...new Set(
-      matchingBlocks
-        .map((b) => Number(String(b.klasse || "").match(/\d+/)?.[0]))
-        .filter(Number.isFinite)
-    )].sort((a, b) => a - b);
-
-    if (numbers.length <= 1) return block.klasse;
-
-    return `${numbers[0]}. - ${numbers[numbers.length - 1]}. Klasse`;
-  },
-  [blockData, getTeacherListFromBlock]
-);
 
   const renderReadOnlySchedule = (title, blocks, subtitle = null, options = {}) => {
   const isTeacherSchedule = options.type === "teacher";
