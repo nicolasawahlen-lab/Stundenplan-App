@@ -1062,7 +1062,7 @@ function App() {
         width: widths?.[index] || 24,
       }));
       sheet.properties.defaultRowHeight = 26;
-      sheet.views = [{ state: "frozen", ySplit: 4 }];
+      sheet.views = [{ state: "frozen", ySplit: 3 }];
 
       sheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) {
@@ -1222,23 +1222,8 @@ function App() {
         sheetData.fillMatrix
       );
 
-      // Build mapping: first data row index where times start
-      const headerRows = 4; // title, blank, day header, slot header
-      const dataStartRow = headerRows + 1; // 5
-
-      // Merge day headers (each day spans 2 subcolumns)
-      for (let i = 0; i < days.length; i++) {
-        const colStart = 2 + i * 2;
-        const colEnd = colStart + 1;
-        try {
-          worksheet.mergeCells(3, colStart, 3, colEnd);
-        } catch (e) {
-          // ignore merge errors
-        }
-        const mergedCell = worksheet.getCell(3, colStart);
-        mergedCell.alignment = { horizontal: "center", vertical: "middle" };
-        mergedCell.font = { bold: true };
-      }
+      const headerRows = 3; // title, blank, day header
+      const dataStartRow = headerRows + 1; // 4
 
       // Fill defaults where no color applied
       worksheet.eachRow((row, rowNumber) => {
@@ -1266,53 +1251,28 @@ function App() {
 
         const startRow = dataStartRow + Number(block.lektion || 0);
         const endRow = startRow + (Number(block.dauer || 1) - 1);
-        const colA = 2 + dayIndex * 2;
-        const colB = colA + 1;
+        const col = 2 + dayIndex;
 
-        // all blocks that start at the same cell (same day & lektion)
         const sameCellBlocks = classBlocks.filter(
           (b) => b.tag === block.tag && Number(b.lektion || 0) === Number(block.lektion || 0)
         );
 
-        if (sameCellBlocks.length === 1) {
-          // occupy full width (merge both subcolumns)
+        if (endRow > startRow) {
           try {
-            worksheet.mergeCells(startRow, colA, endRow, colB);
+            worksheet.mergeCells(startRow, col, endRow, col);
           } catch (e) {}
-
-          const cell = worksheet.getCell(startRow, colA);
-          cell.value = `${block.fach}${block.fachZusatz ? ` (${block.fachZusatz})` : ""}\n${getTeacherDisplay(block)}`;
-          cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
-          cell.font = { bold: true };
-          cell.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: `FF${hslToHex(getColor(block))}` },
-          };
-          processed.add(block.id);
-        } else {
-          // multiple parallel blocks -> occupy subcolumns
-          sameCellBlocks.forEach((b) => {
-            if (processed.has(b.id)) return;
-            const slot = Number(b.parallelSlot) === 1 ? 1 : 0;
-            const col = slot === 0 ? colA : colB;
-            if (endRow > startRow) {
-              try {
-                worksheet.mergeCells(startRow, col, endRow, col);
-              } catch (e) {}
-            }
-            const cell = worksheet.getCell(startRow, col);
-            cell.value = `${b.fach}${b.fachZusatz ? ` (${b.fachZusatz})` : ""}\n${getTeacherDisplay(b)}`;
-            cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
-            cell.font = { bold: true };
-            cell.fill = {
-              type: "pattern",
-              pattern: "solid",
-              fgColor: { argb: `FF${hslToHex(getColor(b))}` },
-            };
-            processed.add(b.id);
-          });
         }
+
+        const cell = worksheet.getCell(startRow, col);
+        cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+        cell.font = { bold: true };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: `FF${hslToHex(getColor(sameCellBlocks[0] || block))}` },
+        };
+        processed.add(block.id);
+        sameCellBlocks.forEach((b) => processed.add(b.id));
       });
     });
 
@@ -1324,19 +1284,8 @@ function App() {
         sheetData.fillMatrix
       );
 
-      const headerRows = 4;
+      const headerRows = 3;
       const dataStartRow = headerRows + 1;
-
-      for (let i = 0; i < days.length; i++) {
-        const colStart = 2 + i * 2;
-        const colEnd = colStart + 1;
-        try {
-          worksheet.mergeCells(3, colStart, 3, colEnd);
-        } catch (e) {}
-        const mergedCell = worksheet.getCell(3, colStart);
-        mergedCell.alignment = { horizontal: "center", vertical: "middle" };
-        mergedCell.font = { bold: true };
-      }
 
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber >= dataStartRow) {
@@ -1362,50 +1311,28 @@ function App() {
 
         const startRow = dataStartRow + Number(block.lektion || 0);
         const endRow = startRow + (Number(block.dauer || 1) - 1);
-        const colA = 2 + dayIndex * 2;
-        const colB = colA + 1;
+        const col = 2 + dayIndex;
 
         const sameCellBlocks = teacherBlocks.filter(
           (b) => b.tag === block.tag && Number(b.lektion || 0) === Number(block.lektion || 0)
         );
 
-        if (sameCellBlocks.length === 1) {
+        if (endRow > startRow) {
           try {
-            worksheet.mergeCells(startRow, colA, endRow, colB);
+            worksheet.mergeCells(startRow, col, endRow, col);
           } catch (e) {}
-
-          const cell = worksheet.getCell(startRow, colA);
-          cell.value = `${block.fach}${block.fachZusatz ? ` (${block.fachZusatz})` : ""}\n${block.klasse}`;
-          cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
-          cell.font = { bold: true };
-          cell.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: `FF${hslToHex(getColor(block))}` },
-          };
-          processed.add(block.id);
-        } else {
-          sameCellBlocks.forEach((b) => {
-            if (processed.has(b.id)) return;
-            const slot = Number(b.parallelSlot) === 1 ? 1 : 0;
-            const col = slot === 0 ? colA : colB;
-            if (endRow > startRow) {
-              try {
-                worksheet.mergeCells(startRow, col, endRow, col);
-              } catch (e) {}
-            }
-            const cell = worksheet.getCell(startRow, col);
-            cell.value = `${b.fach}${b.fachZusatz ? ` (${b.fachZusatz})` : ""}\n${b.klasse}`;
-            cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
-            cell.font = { bold: true };
-            cell.fill = {
-              type: "pattern",
-              pattern: "solid",
-              fgColor: { argb: `FF${hslToHex(getColor(b))}` },
-            };
-            processed.add(b.id);
-          });
         }
+
+        const cell = worksheet.getCell(startRow, col);
+        cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+        cell.font = { bold: true };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: `FF${hslToHex(getColor(sameCellBlocks[0] || block))}` },
+        };
+        processed.add(block.id);
+        sameCellBlocks.forEach((b) => processed.add(b.id));
       });
     });
 
@@ -1458,33 +1385,16 @@ function App() {
       const pdfH = pdf.internal.pageSize.getHeight();
 
       const pxPerMm = imgW / (pdfW * (window.devicePixelRatio || 1));
+      const imgWidthMm = imgW / pxPerMm;
+      const imgHeightMm = imgH / pxPerMm;
+      const scale = Math.min(pdfW / imgWidthMm, pdfH / imgHeightMm);
+      const wInMm = imgWidthMm * scale;
+      const hInMm = imgHeightMm * scale;
+      const x = (pdfW - wInMm) / 2;
+      const yPos = (pdfH - hInMm) / 2;
 
-      // height in px that fits one PDF page
-      const sliceH = Math.floor(pdfH * pxPerMm);
-      let y = 0;
-      let page = 0;
-
-      while (y < imgH) {
-        const h = Math.min(sliceH, imgH - y);
-        const tmpCanvas = document.createElement("canvas");
-        tmpCanvas.width = imgW;
-        tmpCanvas.height = h;
-        const ctx = tmpCanvas.getContext("2d");
-        ctx.drawImage(canvas, 0, y, imgW, h, 0, 0, imgW, h);
-        const imgData = tmpCanvas.toDataURL("image/png");
-
-        const ratio = imgW / (pdfW);
-        const hInMm = h / ratio;
-
-        const x = 0;
-        const yPos = 0;
-
-        if (page > 0) pdf.addPage();
-        pdf.addImage(imgData, "PNG", x, yPos, pdfW, hInMm);
-
-        y += h;
-        page += 1;
-      }
+      const imgData = canvas.toDataURL("image/png");
+      pdf.addImage(imgData, "PNG", x, yPos, wInMm, hInMm);
 
       const fileName = `${fileBaseName}_${makeTimestamp()}.pdf`;
       pdf.save(fileName);
